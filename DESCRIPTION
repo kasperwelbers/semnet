@@ -1,0 +1,17 @@
+Package: semnet
+Version: 0.100
+Date: 2014-05-20
+Title: Semantic network analysis
+Author: Kasper Welbers & Wouter van Atteveldt
+Maintainer: Kasper Welbers <kasperwelbers@gmail.com>
+Depends:
+    slam,
+    Matrix,
+    tm,
+    wordcloud,
+    scales,
+    igraph
+Description: Functions for semantic network analysis in R
+License: MIT
+URL: http://github.com/kasperwelbers/semnet
+Roxygen: list(wrap = FALSE)
