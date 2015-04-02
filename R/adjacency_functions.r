@@ -1,3 +1,5 @@
+
+
 #' Create an adjacency graph from a document term matrix
 #' 
 #' @param dtm a document term matrix, either or not in the dtm format from the `tm` package
@@ -40,7 +42,7 @@ getCosine <- function(mat){
 ##### windowed adjacency functions #####
 
 stretchLocation <- function(location, context, window.size){
-  ## (location and context need to be sorted on order(location, context))
+  ## (location and context need to be sorted on order(context,location))
   newcontext = which(!duplicated(context))
   context.max = location[newcontext-1] + (window.size*2)
   multiplier_scores = cumsum(c(0,context.max))
@@ -50,7 +52,7 @@ stretchLocation <- function(location, context, window.size){
   return(location + multiplier_vector)
 }
 
-locationMatrix <- function(i, j, shifts=0, count.double=F){
+locationMatrix <- function(i, j, shifts=0, count.once=T){
   mat = spMatrix(max(i), max(j))
   for(shift in shifts){
     i_shift = i + shift
@@ -58,15 +60,25 @@ locationMatrix <- function(i, j, shifts=0, count.double=F){
     mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(1, sum(select))) 
   }
   mat = mat[i,]
-  if(count.double==F) mat[mat>0] = 1
+  if(count.once) mat[mat>0] = 1
   mat
 }
 
-locationWindowMatrix <- function(location, term, context, window.size=3, two.sided=T, count.double=F){
+#' A sliding window approach to calculate the co-occurence of words
+#' 
+#' @param location An integer vector giving the position of terms in a given context (e.g., document, paragraph, sentence) 
+#' @param term A character vector giving the terms
+#' @param context A vector giving the context in which terms occur (e.g., document, paragraph, sentence)
+#' @param window.size The distance within which words should occur from each other to be counted as a co-occurence.
+#' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
+#' @param count.once Logical. A word can occur multiple times within the same window. If count.once is true, this is only counted as a single occurence (suggested).
+#' @return A graph in the Igraph format in which edges represent the adjacency of terms
+#' @export
+wordWindowAdjacency <- function(location, term, context, window.size=3, two.sided=T, count.once=T){
   ord = order(context, location)
-  location = location[ord,]
-  term = term[ord,]
-  context = context[ord,]
+  location = location[ord]
+  term = term[ord]
+  context = context[ord]
   
   location = stretchLocation(location,context,window.size=3)
   shifts = if(two.sided) -window.size:window.size else 0:window.size
@@ -74,16 +86,18 @@ locationWindowMatrix <- function(location, term, context, window.size=3, two.sid
   term_index = match(term, terms)
   
   location.mat = locationMatrix(location, term_index, 0)
-  window.mat = locationMatrix(location, term_index, shifts, count.double)
+  window.mat = locationMatrix(location, term_index, shifts[!shifts == 0], count.once)
   colnames(location.mat) = colnames(window.mat) = terms
-  rownames(location.mat) = rownames(window.mat) = context
-  list(location.mat=location.mat, window.mat=window.mat)
+  
+  calculateAdjacency(location.mat, window.mat)
 }
 
 
-
-
-
-
-
-
+calculateAdjacency <- function(location.mat, window.mat){
+  adjmat = Matrix::crossprod(location.mat, window.mat)
+  Matrix::diag(adjmat) = 0  
+  
+  test = Matrix(sample(0:1,12,T), ncol=3, sparse=T)
+  termfreq = Matrix::colSums(as(location.mat, 'dgCMatrix'))
+  list(adjmat=adjmat, termfreq=termfreq)
+}

@@ -5,12 +5,13 @@ Title: Semantic network analysis
 Author: Kasper Welbers & Wouter van Atteveldt
 Maintainer: Kasper Welbers <kasperwelbers@gmail.com>
 Depends:
-    slam,
-    Matrix,
-    tm,
+    zoo,
     wordcloud,
     scales,
-    igraph
+    tm,
+    slam,
+    igraph,
+    Matrix
 Description: Functions for semantic network analysis in R
 License: MIT
 URL: http://github.com/kasperwelbers/semnet

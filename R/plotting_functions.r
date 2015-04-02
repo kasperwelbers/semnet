@@ -7,11 +7,10 @@
 #' @param if TRUE, isolates are placed next to the network
 #' @return a network in the Igraph format
 #' @export 
-setNetworkAttributes <- function(g, size_attribute=NULL, cluster_attribute=NULL, rearange.isolates=F){
+setNetworkAttributes <- function(g, size_attribute=NULL, cluster_attribute=NULL){
   g = setVertexAttributes(g, size_attribute, cluster_attribute)
   g = setEdgeAttributes(g)  
   g$layout = layout.fruchterman.reingold(g)
-  if(rearange.isolates) g$layout = arrangeIsolates(g)
   g
 }
 
@@ -23,9 +22,9 @@ setVertexColors <- function(g, cluster_attribute){
     pal = rep(pal, 5)
     
     duplicates = unique(cl[duplicated(cl)])
-    V(g)$cluster = match(cl, duplicates) # re-index clusters, and setting isolates to NA
+    cl = match(cl, duplicates) # re-index clusters, and setting isolates to NA
     V(g)$color = 'lightgrey'
-    V(g)$color[!is.na(V(g)$cluster)] = pal[V(g)$cluster[!is.na(V(g)$cluster)]]
+    V(g)$color[!is.na(cl)] = pal[cl[!is.na(cl)]]
     V(g)$frame.color = V(g)$color
   } else {
     V(g)$color = 'cadetblue1'

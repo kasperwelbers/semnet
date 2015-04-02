@@ -4,8 +4,7 @@
 \alias{setNetworkAttributes}
 \title{Set some default network attributes, including colors based on clustering, for pretty plotting}
 \usage{
-setNetworkAttributes(g, size_attribute = NULL, cluster_attribute = NULL,
-  rearange.isolates = F)
+setNetworkAttributes(g, size_attribute = NULL, cluster_attribute = NULL)
 }
 \arguments{
 \item{g}{A graph in the Igraph format.}

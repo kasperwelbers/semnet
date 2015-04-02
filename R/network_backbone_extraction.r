@@ -51,15 +51,15 @@ backbone.alpha <- function(g){
   
   edgelist_ids = get.edgelist(g, names=F)
   alpha_ij = getAlpha(mat)[edgelist_ids] # alpha from the perspective of the 'from' node.
-  alpha_ji = t(getAlpha(t(mat)))[edgelist_ids] # alpha from the perspective of the 'to' node.
+  alpha_ji = Matrix::t(getAlpha(Matrix::t(mat)))[edgelist_ids] # alpha from the perspective of the 'to' node.
   alpha_ij[alpha_ji < alpha_ij] = alpha_ji[alpha_ji < alpha_ij] # select lowest alpha, because an edge can be 'significant' from the perspective of both the 'from' and 'to' node. 
   alpha_ij
 }
 
 #' @export
 getAlpha <- function(mat){
-  weightsum = rowSums(mat) + colSums(mat)
-  k = rowSums(mat>0) + colSums(mat>0)
+  weightsum = Matrix::rowSums(mat) + Matrix::colSums(mat)
+  k = Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
   mat = mat / weightsum
   (1 - mat)^(k-1)
 }
@@ -73,8 +73,8 @@ getAlpha <- function(mat){
 #' @export
 backbone.outdegree.alpha <- function(g){
   mat = get.adjacency(g, attr='weight')
-  weightsum = rowSums(mat)
-  k = rowSums(mat > 0)
+  weightsum = Matrix::rowSums(mat)
+  k = Matrix::rowSums(mat > 0)
   edgelist_ids = get.edgelist(g, names=F)
   getAlpha(mat, weightsum, k)[edgelist_ids]
 }
@@ -88,8 +88,8 @@ backbone.outdegree.alpha <- function(g){
 #' @export
 backbone.indegree.alpha <- function(g){
   mat = get.adjacency(g, attr='weight')
-  weightsum = colSums(mat)
-  k = colSums(mat > 0)
+  weightsum = Matrix::colSums(mat)
+  k = Matrix::colSums(mat > 0)
   edgelist_ids = get.edgelist(g, names=F)
   t(getAlpha(t(mat), weightsum, k))[edgelist_ids]
 }
