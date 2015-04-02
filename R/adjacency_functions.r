@@ -75,6 +75,13 @@ locationMatrix <- function(i, j, shifts=0, count.once=T){
 #' @return A graph in the Igraph format in which edges represent the adjacency of terms
 #' @export
 wordWindowAdjacency <- function(location, term, context, window.size=3, two.sided=T, count.once=T){
+  nas = is.na(term)
+  if (any(nas)) {
+    term = term[!nas]
+    location = location[!nas]
+    context = context[!nas]
+  }
+  
   ord = order(context, location)
   location = location[ord]
   term = term[ord]
