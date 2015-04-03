@@ -130,7 +130,8 @@ calculateAdjacency <- function(location.mat, window.mat){
 
 aggCoOc <- function(x, location.mat, window.mat){
   cooc = location.mat[,x] & window.mat
-  cooc = data.frame(x=x, y=Matrix::t(cooc)@i+1, context=cooc@i+1, n=cooc@x)
+  cooc = as(cooc, 'lgTMatrix')
+  cooc = data.frame(x=x, y=cooc@j+1, context=cooc@i+1, n=cooc@x)
   cooc = cooc[!cooc$x == cooc$y,]
   ddply(cooc, .(x,y,context), summarize, n=sum(n))
 }
@@ -141,5 +142,33 @@ calculateAdjacencyPerContext <- function(location.mat, window.mat) {
   adj$x = as.factor(colnames(location.mat)[adj$x])
   adj$y = as.factor(colnames(location.mat)[adj$y])
   adj
+}
+
+#' Merge a list of matrices
+#' 
+#' Merge matrices, by standradizing column and row dimensions and using the Reduce function to merge them.
+#' 
+#' @param matrices A list of matrices
+#' @param reduce_func The function to pass to Reduce
+#' @return A single matrix
+#' @export
+mergeMatrices <- function(matrices, reduce_func='+'){
+  rowdim = unique(llply(matrices, function(x) rownames(x)))[[1]]
+  coldim = unique(llply(matrices, function(x) colnames(x)))[[1]]
+  matrices = llply(matrices, function(x) setMatrixDims(x, rowdim, coldim))
+  mat = Reduce(reduce_func, matrices)
+  rownames(mat) = rowdim
+  colnames(mat) = coldim
+  mat
+}
+
+setMatrixDims <- function(mat, rowdim, coldim){
+  ## set rows and columns of matrix to given rowdim and coldim vectors. (usefull for making different matrices identical so that they can be summed up)  
+  mat = as(mat, 'dgTMatrix')
+  d = data.frame(i=rownames(mat)[mat@i+1], j=colnames(mat)[mat@j+1], v=mat@x) 
+  d = d[d$i %in% rowdim & d$j %in% coldim,]
+  d$i = match(d$i, rowdim)
+  d$j = match(d$j, coldim)
+  spMatrix(length(rowdim), length(coldim), d$i, d$j, d$v)
 }
 
