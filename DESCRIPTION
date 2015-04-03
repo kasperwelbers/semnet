@@ -5,6 +5,7 @@ Title: Semantic network analysis
 Author: Kasper Welbers & Wouter van Atteveldt
 Maintainer: Kasper Welbers <kasperwelbers@gmail.com>
 Depends:
+    plyr,
     zoo,
     wordcloud,
     scales,

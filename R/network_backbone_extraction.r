@@ -61,7 +61,9 @@ getAlpha <- function(mat){
   weightsum = Matrix::rowSums(mat) + Matrix::colSums(mat)
   k = Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
   mat = mat / weightsum
-  (1 - mat)^(k-1)
+  mat = (1 - mat)^(k-1)
+  mat[is.na(mat)] = 1
+  mat
 }
 
 #' Calculate the alpha values that can be used to extract the backbone of a network, for only the out.degree

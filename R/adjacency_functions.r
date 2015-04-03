@@ -64,17 +64,18 @@ locationMatrix <- function(i, j, shifts=0, count.once=T){
   mat
 }
 
-#' A sliding window approach to calculate the co-occurence of words
+#' Gives the window in which a term occured in a matrix.
+#' 
+#' This function returns the occurence of words (location.matrix) and the window of occurence (window.matrix). This format enables the co-occurence of words within sliding windows (i.e. word distance) to be calculated by multiplying location.matrix with window.matrix. 
 #' 
 #' @param location An integer vector giving the position of terms in a given context (e.g., document, paragraph, sentence) 
 #' @param term A character vector giving the terms
 #' @param context A vector giving the context in which terms occur (e.g., document, paragraph, sentence)
 #' @param window.size The distance within which words should occur from each other to be counted as a co-occurence.
 #' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
-#' @param count.once Logical. A word can occur multiple times within the same window. If count.once is true, this is only counted as a single occurence (suggested).
-#' @return A graph in the Igraph format in which edges represent the adjacency of terms
+#' @return A list with two matrices. location.mat gives the specific location of a term, and window.mat gives the window in which each word occured. The rows represent the location of a term, and matches the input of this function (location, term and context). The columns represents terms.
 #' @export
-wordWindowAdjacency <- function(location, term, context, window.size=3, two.sided=T, count.once=T){
+wordWindowOccurence <- function(location, term, context, window.size=3, two.sided=T){
   nas = is.na(term)
   if (any(nas)) {
     term = term[!nas]
@@ -87,24 +88,59 @@ wordWindowAdjacency <- function(location, term, context, window.size=3, two.side
   term = term[ord]
   context = context[ord]
   
-  location = stretchLocation(location,context,window.size=3)
+  location = stretchLocation(location,context,window.size=window.size)
   shifts = if(two.sided) -window.size:window.size else 0:window.size
   terms = unique(term)
   term_index = match(term, terms)
   
   location.mat = locationMatrix(location, term_index, 0)
-  window.mat = locationMatrix(location, term_index, shifts[!shifts == 0], count.once)
+  window.mat = locationMatrix(location, term_index, shifts)
   colnames(location.mat) = colnames(window.mat) = terms
+  rownames(location.mat) = rownames(window.mat) = context
   
-  calculateAdjacency(location.mat, window.mat)
+  list(location.mat=location.mat, window.mat=window.mat)
+  
+  #calculateAdjacency(location.mat, window.mat)
 }
 
+#' A sliding window approach to calculate the adjacency of words
+#' 
+#' @param location An integer vector giving the position of terms in a given context (e.g., document, paragraph, sentence) 
+#' @param term A character vector giving the terms
+#' @param context A vector giving the context in which terms occur (e.g., document, paragraph, sentence)
+#' @param window.size The distance within which words should occur from each other to be counted as a co-occurence.
+#' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
+#' @return A list with two matrices. location.mat gives the specific location of a term, and window.mat gives the window in which each word occured. The rows represent the location of a term, and matches the input of this function (location, term and context). The columns represents terms.
+#' @export
+wordWindowAdjacency <- function(location, term, context, window.size=3, output.per.context=F, two.sided=T){
+  mat = wordWindowOccurence(location, term, context, window.size, two.sided)
+  if(output.per.context) {
+    calculateAdjacencyPerContext(mat$location.mat, mat$window.mat)
+  } else {
+    calculateAdjacency(mat$location.mat, mat$window.mat)
+  }
+}
 
 calculateAdjacency <- function(location.mat, window.mat){
   adjmat = Matrix::crossprod(location.mat, window.mat)
   Matrix::diag(adjmat) = 0  
-  
-  test = Matrix(sample(0:1,12,T), ncol=3, sparse=T)
   termfreq = Matrix::colSums(as(location.mat, 'dgCMatrix'))
-  list(adjmat=adjmat, termfreq=termfreq)
+  list(adj=adjmat, termfreq=termfreq)
 }
+
+aggCoOc <- function(x, location.mat, window.mat){
+  cooc = location.mat[,x] & window.mat
+  cooc = data.frame(x=x, y=Matrix::t(cooc)@i+1, context=cooc@i+1, n=cooc@x)
+  cooc = cooc[!cooc$x == cooc$y,]
+  ddply(cooc, .(x,y,context), summarize, n=sum(n))
+}
+
+calculateAdjacencyPerContext <- function(location.mat, window.mat) {
+  adj = ldply(1:ncol(location.mat), function(x) aggCoOc(x, location.mat, window.mat))
+  adj$context = rownames(location.mat)[adj$context]
+  adj$x = as.factor(colnames(location.mat)[adj$x])
+  adj$y = as.factor(colnames(location.mat)[adj$y])
+  termfreq = Matrix::colSums(as(location.mat, 'dgCMatrix'))
+  list(adj=adj, termfreq=termfreq)
+}
+
