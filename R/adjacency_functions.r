@@ -60,7 +60,8 @@ locationMatrix <- function(i, j, shifts=0, count.once=T){
     mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(1, sum(select))) 
   }
   mat = mat[i,]
-  if(count.once) mat[mat>0] = 1
+  mat = as(mat, 'dgCMatrix')
+  if(count.once) mat@x[mat@x>0] = 1
   mat
 }
 
@@ -124,8 +125,7 @@ wordWindowAdjacency <- function(location, term, context, window.size=3, output.p
 calculateAdjacency <- function(location.mat, window.mat){
   adjmat = Matrix::crossprod(location.mat, window.mat)
   Matrix::diag(adjmat) = 0  
-  termfreq = Matrix::colSums(as(location.mat, 'dgCMatrix'))
-  list(adj=adjmat, termfreq=termfreq)
+  adjmat
 }
 
 aggCoOc <- function(x, location.mat, window.mat){
@@ -140,7 +140,6 @@ calculateAdjacencyPerContext <- function(location.mat, window.mat) {
   adj$context = rownames(location.mat)[adj$context]
   adj$x = as.factor(colnames(location.mat)[adj$x])
   adj$y = as.factor(colnames(location.mat)[adj$y])
-  termfreq = Matrix::colSums(as(location.mat, 'dgCMatrix'))
-  list(adj=adj, termfreq=termfreq)
+  adj
 }
 
