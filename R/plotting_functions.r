@@ -36,10 +36,9 @@ setVertexColors <- function(g, cluster_attribute){
 setVertexAttributes <- function(g, size_attribute, cluster_attribute){
   g = setVertexColors(g, cluster_attribute)
   proportion = if(!is.null(size_attribute)) get.vertex.attribute(g, size_attribute) else degree(g)
-  V(g)$size= rescale(proportion^0.4, to=c(1,20))
-  rescale(x=c(0,1,2,3), to=c(1,5))
+  V(g)$size= rescale(proportion^0.4, to=c(1,15))
   V(g)$label.color = 'black'
-  V(g)$label.cex = rescale(proportion, to=c(0.7,1.5))
+  V(g)$label.cex = rescale(proportion, to=c(0.7,1.2))
   V(g)$label = V(g)$name
   g
 }

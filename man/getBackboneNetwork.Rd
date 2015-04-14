@@ -4,7 +4,7 @@
 \title{Extract the backbone of a network.}
 \usage{
 getBackboneNetwork(g, alpha = 0.05, direction = "none",
-  delete.isolates = T, max.vertices = NULL)
+  delete.isolates = T, max.vertices = NULL, use.original.alpha = T)
 }
 \arguments{
 \item{g}{A graph in the `Igraph` format.}
@@ -16,6 +16,8 @@ getBackboneNetwork(g, alpha = 0.05, direction = "none",
 \item{delete.isolates}{If TRUE, vertices with degree 0 (i.e. no edges) are deleted.}
 
 \item{max.vertices}{Optional. Set a maximum number of vertices for the network to be produced. The alpha is then automatically lowered to the point that only the given number of vertices remains connected (degree > 0). This can be usefull if the purpose is to make an interpretation friendly network. See e.g., http://jcom.sissa.it/archive/14/01/JCOM_1401_2015_A01}
+
+\item{use.original.alpha}{if max.vertices is not NULL, this determines whether the lower alpha for selecting the top vertices is also used as a threshold for the edges, or whether the original value given in the alpha parameter is used.}
 }
 \value{
 A graph in the Igraph format
