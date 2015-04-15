@@ -14,17 +14,17 @@ setNetworkAttributes <- function(g, size_attribute=NULL, cluster_attribute=NULL)
   g
 }
 
-setVertexColors <- function(g, cluster_attribute){  
-  if(!is.null(cluster_attribute)){
-    cl = get.vertex.attribute(g, cluster_attribute)
+setVertexColors <- function(g, cluster){  
+  if(!is.null(cluster)){
+    #cl = get.vertex.attribute(g, cluster_attribute)
     pal = colors(distinct=T)[grep('1', colors(distinct=T))] 
     pal = pal[grep('white|gray', pal, invert=T)] 
     pal = rep(pal, 5)
     
-    duplicates = unique(cl[duplicated(cl)])
-    cl = match(cl, duplicates) # re-index clusters, and setting isolates to NA
+    duplicates = unique(cluster[duplicated(cluster)])
+    cluster = match(cluster, duplicates) # re-index clusters, and setting isolates to NA
     V(g)$color = 'lightgrey'
-    V(g)$color[!is.na(cl)] = pal[cl[!is.na(cl)]]
+    V(g)$color[!is.na(cluster)] = pal[cluster[!is.na(cluster)]]
     V(g)$frame.color = V(g)$color
   } else {
     V(g)$color = 'cadetblue1'
@@ -33,12 +33,15 @@ setVertexColors <- function(g, cluster_attribute){
   g
 }
 
-setVertexAttributes <- function(g, size_attribute, cluster_attribute){
-  g = setVertexColors(g, cluster_attribute)
-  proportion = if(!is.null(size_attribute)) get.vertex.attribute(g, size_attribute) else degree(g)
-  V(g)$size= rescale(proportion^0.4, to=c(1,15))
+setVertexAttributes <- function(g, size, cluster){
+  g = setVertexColors(g, cluster)
+  if(is.null(size)) {
+    size = degree(g)
+    message('No size attribute is given. Vertex size instead based on degree')
+  }
+  V(g)$size= rescale(size^0.4, to=c(1,15))
   V(g)$label.color = 'black'
-  V(g)$label.cex = rescale(proportion, to=c(0.7,1.2))
+  V(g)$label.cex = rescale(size, to=c(0.7,1.2))
   V(g)$label = V(g)$name
   g
 }

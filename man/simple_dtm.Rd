@@ -3,13 +3,13 @@
 \docType{data}
 \name{simple_dtm}
 \alias{simple_dtm}
-\title{Simple dtm to illustrate wordAdjacency function}
+\title{Simple dtm to illustrate coOccurenceNetwork function}
 \format{simple_dtm: A small document term matrix}
 \usage{
 data(simple_dtm)
 }
 \description{
-Simple dtm to illustrate wordAdjacency function
+Simple dtm to illustrate coOccurenceNetwork function
 }
 \keyword{datasets}
 
