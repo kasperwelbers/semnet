@@ -116,8 +116,10 @@ wordWindowOccurence <- function(location, term, context, window.size=3, two.side
   
   location.mat = locationMatrix(location, term_index, 0)
   window.mat = locationMatrix(location, term_index, shifts)
+  
   colnames(location.mat) = colnames(window.mat) = terms
   rownames(location.mat) = rownames(window.mat) = context
+
   
   list(location.mat=location.mat, window.mat=window.mat)
   
@@ -134,7 +136,8 @@ wordWindowOccurence <- function(location, term, context, window.size=3, two.side
 #' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
 #' @return An edgelist (data.frame) with columns x, y and weight, in which weight represents the number of times y occured within a [window.size] word distance from x. If output.per.context is True, co-occurences are reported per context, and the edgelist has an additional context column.
 #' @export
-windowedCoOccurenceNetwork <- function(location, term, context, window.size=3, output.per.context=F, two.sided=T){
+windowedCoOccurenceNetwork <- function(location, term, context, window.size=10, output.per.context=F, two.sided=T){
+  if(min(location) == 0) location = location + 1 # if indexing starts at 0, set to 1
   mat = wordWindowOccurence(location, term, context, window.size, two.sided)
   if(output.per.context) {
     calculateAdjacencyPerContext(mat$location.mat, mat$window.mat)
