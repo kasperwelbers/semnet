@@ -16,10 +16,7 @@ setNetworkAttributes <- function(g, size_attribute=NULL, cluster_attribute=NULL)
 
 setVertexColors <- function(g, cluster){  
   if(!is.null(cluster)){
-    #cl = get.vertex.attribute(g, cluster_attribute)
-    pal = colors(distinct=T)[grep('1', colors(distinct=T))] 
-    pal = pal[grep('white|gray', pal, invert=T)] 
-    pal = rep(pal, 5)
+    pal = substr(rainbow(length(unique(cluster)), s=0.6,alpha=0.5), 1,7)
     
     duplicates = unique(cluster[duplicated(cluster)])
     cluster = match(cluster, duplicates) # re-index clusters, and setting isolates to NA
@@ -39,7 +36,7 @@ setVertexAttributes <- function(g, size, cluster){
     size = degree(g)
     message('No size attribute is given. Vertex size instead based on degree')
   }
-  V(g)$size= rescale(size^0.4, to=c(1,15))
+  V(g)$size= rescale(size^0.4, to=c(2,15))
   V(g)$label.color = 'black'
   V(g)$label.cex = rescale(size, to=c(0.7,1.2))
   V(g)$label = V(g)$name

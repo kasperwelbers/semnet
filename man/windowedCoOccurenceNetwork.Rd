@@ -4,7 +4,7 @@
 \alias{windowedCoOccurenceNetwork}
 \title{A sliding window approach to calculate the co-occurence of words}
 \usage{
-windowedCoOccurenceNetwork(location, term, context, window.size = 3,
+windowedCoOccurenceNetwork(location, term, context, window.size = 10,
   output.per.context = F, two.sided = T)
 }
 \arguments{

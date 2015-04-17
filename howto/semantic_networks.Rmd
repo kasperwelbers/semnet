@@ -77,12 +77,10 @@ The output of the (windowed)coOccurenceNetwork function by default contains the 
 
 
 ```{r}
-V(g)$size = V(g)$freq # set vertex size. Igraph automatically uses certain 
-
 # add vertex cluster membership based on edge.betweenness.community clustering
 V(g_backbone)$cluster = edge.betweenness.community(g_backbone)$membership
 
-g_backbone = setNetworkAttributes(g_backbone, size_attribute=V(g_backbone)$size, cluster_attribute=V(g_backbone)$cluster)
+g_backbone = setNetworkAttributes(g_backbone, size_attribute=V(g_backbone)$freq, cluster_attribute=V(g_backbone)$cluster)
 
 plot(g_backbone)
 ```
