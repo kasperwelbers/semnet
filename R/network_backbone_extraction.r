@@ -19,12 +19,15 @@ getMaxAlphaFilters <- function(g, max.vertices){
 filterVerticesByAlpha <- function(g, max.vertices, use.original.alpha){
   filters = getMaxAlphaFilters(g, max.vertices)
   
-  if(filters$max.alpha < max(E(g)$alpha)) message(paste('Used cutoff alpha', filters$max.alpha, 'to keep number of vertices under', max.vertices))
-  if(use.original.alpha){
-    message(paste('(For the edges the threshold assigned in the alpha parameter is still used)'))
-    g = delete.edges(g, filters$delete.edges)
-  } else {
-    g = delete.edges(g, which(E(g)$alpha >= filters$max.alpha)) 
+  if(filters$max.alpha < max(E(g)$alpha)) {
+    message(paste('Used cutoff alpha', filters$max.alpha, 'to keep number of vertices under', max.vertices))
+    if(use.original.alpha){
+      message(paste('(For the edges the threshold assigned in the alpha parameter is still used)'))
+      
+      g = delete.edges(g, filters$delete.edges)
+    } else {
+      g = delete.edges(g, which(E(g)$alpha >= filters$max.alpha)) 
+    }
   }
   g
 }
