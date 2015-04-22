@@ -11,6 +11,7 @@ coOccurenceNetwork <- function(dtm, measure='cooccurence'){
   dtm = as(dtm, 'dgCMatrix')
   if(measure == 'cosine') {
     mat = getCosine(dtm)
+    Matrix::diag(mat) = 0 # ignore loops
     g = graph.adjacency(mat, mode='upper', diag=F, weighted=T)
   }
   if(measure == 'cooccurence') {
@@ -35,29 +36,30 @@ dtmToSparseMatrix <- function(dtm){
   sm
 }
 
-getCoOccurence <- function(mat){
-  mat@x[mat@x > 0] = 1
-  mat = Matrix::crossprod(mat) 
+getCoOccurence <- function(m1, m2=m1){
+  m1@x[m1@x > 0] = 1
+  m2@x[m2@x > 0] = 1
+  mat = Matrix::crossprod(m1,m2) 
   mat[is.na(mat)] = 0
   mat
 }
 
-getConditionalProbability <- function(mat){
-  mat@x[mat@x > 0] = 1
-  mat = Matrix::crossprod(mat)/col_sums(mat) 
+getConditionalProbability <- function(m1, m2=m1){
+  m1@x[m1@x > 0] = 1
+  m2@x[m2@x > 0] = 1
+  mat = Matrix::crossprod(m1,m2)/colSums(m1) 
   mat[is.na(mat)] = 0
   mat
 }
 
-getCosine <- function(mat){
-  mat = Matrix::crossprod(mat)
-  mat = mat/Matrix::crossprod(t(Matrix::diag(sqrt(mat))))
-  Matrix::diag(mat) = 0 # ignore loops
+getCosine <- function(m1, m2=m1){
+  norm.x = sqrt(colSums(m1^2))
+  norm.y = sqrt(colSums(m2^2))
+  mat = Matrix::crossprod(m1,m2)
+  mat = mat / Matrix::tcrossprod(norm.x, norm.y)
   mat[is.na(mat)] = 0
   mat
 }
-
-
 
 ##### windowed adjacency functions #####
 

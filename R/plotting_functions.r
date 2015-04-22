@@ -15,18 +15,15 @@ setNetworkAttributes <- function(g, size_attribute=NULL, cluster_attribute=NULL)
 }
 
 setVertexColors <- function(g, cluster){  
+  V(g)$color = 'cadetblue1'
   if(!is.null(cluster)){
     pal = substr(rainbow(length(unique(cluster)), s=0.6,alpha=0.5), 1,7)
     
     duplicates = unique(cluster[duplicated(cluster)])
     cluster = match(cluster, duplicates) # re-index clusters, and setting isolates to NA
-    V(g)$color = 'lightgrey'
     V(g)$color[!is.na(cluster)] = pal[cluster[!is.na(cluster)]]
-    V(g)$frame.color = V(g)$color
-  } else {
-    V(g)$color = 'cadetblue1'
-    V(g)$frame.color = 'cadetblue1'
-  }
+  }   
+  V(g)$frame.color = V(g)$color
   g
 }
 

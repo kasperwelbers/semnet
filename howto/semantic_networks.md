@@ -58,7 +58,7 @@ g = coOccurenceNetwork(dtm)
 
 ```
 ## Note: method with signature 'CsparseMatrix#Matrix#missing#replValue' chosen for function '[<-',
-##  target signature 'dsCMatrix#nsCMatrix#missing#numeric'.
+##  target signature 'dgCMatrix#nsCMatrix#missing#numeric'.
 ##  "Matrix#nsparseMatrix#missing#replValue" would also be valid
 ```
 
