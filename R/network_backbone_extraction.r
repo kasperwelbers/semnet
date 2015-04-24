@@ -46,10 +46,10 @@ filterVerticesByAlpha <- function(g, max.vertices, use.original.alpha){
 #' @param use.original.alpha if max.vertices is not NULL, this determines whether the lower alpha for selecting the top vertices is also used as a threshold for the edges, or whether the original value given in the alpha parameter is used.
 #' @return A graph in the Igraph format
 #' @export
-getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=T, max.vertices=NULL, use.original.alpha=T){
-  if(direction == 'none') E(g)$alpha = backbone.alpha(g)
-  if(direction == 'in') E(g)$alpha = backbone.indegree.alpha(g)
-  if(direction == 'out') E(g)$alpha = backbone.outdegree.alpha(g)
+getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=T, max.vertices=NULL, use.original.alpha=T, k.is.Nvertices=F){
+  if(direction == 'none') E(g)$alpha = backbone.alpha(g, k.is.Nvertices)
+  if(direction == 'in') E(g)$alpha = backbone.indegree.alpha(g, k.is.Nvertices)
+  if(direction == 'out') E(g)$alpha = backbone.outdegree.alpha(g, k.is.Nvertices)
   g = delete.edges(g, which(E(g)$alpha >= alpha))
   if(!is.null(max.vertices) & ecount(g) > 0) g = filterVerticesByAlpha(g, max.vertices, use.original.alpha)
   if(delete.isolates) g = delete.vertices(g, which(degree(g) == 0))
@@ -67,12 +67,13 @@ getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=
 #' @param g A graph in the `Igraph` format.
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
-backbone.alpha <- function(g){
+backbone.alpha <- function(g, k.is.Nvertices=F){
   mat = get.adjacency(g, attr='weight')
   if(!is.directed(g)) mat[lower.tri(mat)] = 0 # prevents counting edges double in symmetric matrix (undirected graph)
   
   weightsum = Matrix::rowSums(mat) + Matrix::colSums(mat)
-  k = Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
+  k = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
+  if(is.directed(g) & k.is.Nvertices) k = k + ncol(mat)
   
   edgelist_ids = get.edgelist(g, names=F)
   alpha_ij = calcAlpha(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
@@ -95,10 +96,10 @@ calcAlpha <- function(mat, weightsum, k){
 #' @param g A graph in the `Igraph` format.
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
-backbone.outdegree.alpha <- function(g){
+backbone.outdegree.alpha <- function(g, k.is.Nvertices=F){
   mat = get.adjacency(g, attr='weight')
   weightsum = Matrix::rowSums(mat)
-  k = Matrix::rowSums(mat > 0)
+  k = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat > 0)
   edgelist_ids = get.edgelist(g, names=F)
   calcAlpha(mat, weightsum, k)[edgelist_ids]
 }
@@ -110,10 +111,10 @@ backbone.outdegree.alpha <- function(g){
 #' @param g A graph in the `Igraph` format.
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
-backbone.indegree.alpha <- function(g){
+backbone.indegree.alpha <- function(g, k.is.Nvertices=F){
   mat = get.adjacency(g, attr='weight')
   weightsum = Matrix::colSums(mat)
-  k = Matrix::colSums(mat > 0)
+  k = if(k.is.Nvertices) nrow(mat) else Matrix::colSums(mat > 0)
   edgelist_ids = get.edgelist(g, names=F)
   Matrix::t(calcAlpha(Matrix::t(mat), weightsum, k))[edgelist_ids]
 }

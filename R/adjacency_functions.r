@@ -47,14 +47,14 @@ getCoOccurence <- function(m1, m2=m1){
 getConditionalProbability <- function(m1, m2=m1){
   m1@x[m1@x > 0] = 1
   m2@x[m2@x > 0] = 1
-  mat = Matrix::crossprod(m1,m2)/colSums(m1) 
+  mat = Matrix::crossprod(m1,m2)/Matrix::colSums(m1) 
   mat[is.na(mat)] = 0
   mat
 }
 
 getCosine <- function(m1, m2=m1){
-  norm.x = sqrt(colSums(m1^2))
-  norm.y = sqrt(colSums(m2^2))
+  norm.x = sqrt(Matrix::colSums(m1^2))
+  norm.y = sqrt(Matrix::colSums(m2^2))
   mat = Matrix::crossprod(m1,m2)
   mat = mat / Matrix::tcrossprod(norm.x, norm.y)
   mat[is.na(mat)] = 0

@@ -4,7 +4,7 @@
 \alias{backbone.outdegree.alpha}
 \title{Calculate the alpha values that can be used to extract the backbone of a network, for only the out.degree}
 \usage{
-backbone.outdegree.alpha(g)
+backbone.outdegree.alpha(g, k.is.Nvertices = F)
 }
 \arguments{
 \item{g}{A graph in the `Igraph` format.}

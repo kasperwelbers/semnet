@@ -4,7 +4,7 @@
 \alias{backbone.alpha}
 \title{Calculate the alpha values that can be used to extract the backbone of a network.}
 \usage{
-backbone.alpha(g)
+backbone.alpha(g, k.is.Nvertices = F)
 }
 \arguments{
 \item{g}{A graph in the `Igraph` format.}
