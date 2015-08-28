@@ -60,6 +60,18 @@ getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=
   g
 }
 
+
+
+calcAlpha <- function(mat, weightsum, k){
+  #mat = mat / weightsum
+  #mat = (1 - mat)^(k-1)
+  #mat[is.na(mat)] = 1
+  mat@x = mat@x / weightsum[mat@i+1]
+  mat@x = (1 - mat@x)^(k[mat@i+1]-1)
+  mat@x[is.na(mat@x)] = 1
+  mat
+}
+
 #' Calculate the alpha values that can be used to extract the backbone of a network.
 #' 
 #' Based on the following paper: Serrano, M. Á., Boguñá, M., & Vespignani, A. (2009). Extracting the multiscale backbone of complex weighted networks. Proceedings of the National Academy of Sciences, 106(16), 6483-6488.
@@ -76,17 +88,10 @@ backbone.alpha <- function(g, k.is.Nvertices=F){
   if(is.directed(g) & k.is.Nvertices) k = k + ncol(mat)
   
   edgelist_ids = get.edgelist(g, names=F)
-  alpha_ij = calcAlpha(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
+  alpha_ij = calcAlpha2(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
   alpha_ji = Matrix::t(calcAlpha(Matrix::t(mat), weightsum, k))[edgelist_ids] # alpha from the perspective of the 'to' node.
   alpha_ij[alpha_ji < alpha_ij] = alpha_ji[alpha_ji < alpha_ij] # select lowest alpha, because an edge can be 'significant' from the perspective of both the 'from' and 'to' node. 
   alpha_ij
-}
-
-calcAlpha <- function(mat, weightsum, k){
-  mat = mat / weightsum
-  mat = (1 - mat)^(k-1)
-  mat[is.na(mat)] = 1
-  mat
 }
 
 #' Calculate the alpha values that can be used to extract the backbone of a network, for only the out.degree

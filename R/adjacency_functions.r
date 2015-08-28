@@ -10,8 +10,7 @@ coOccurenceNetwork <- function(dtm, measure='cooccurence'){
   if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
   dtm = as(dtm, 'dgCMatrix')
   if(measure == 'cosine') {
-    mat = getCosine(dtm)
-    Matrix::diag(mat) = 0 # ignore loops
+    mat = as(getCosine(dtm), 'dgCMatrix')
     g = graph.adjacency(mat, mode='upper', diag=F, weighted=T)
   }
   if(measure == 'cooccurence') {
@@ -202,3 +201,175 @@ setMatrixDims <- function(mat, rowdim, coldim){
   spMatrix(length(rowdim), length(coldim), d$i, d$j, d$v)
 }
 
+
+#### using chi-square (experimental)
+
+#' Compute the chi^2 statistic for a 2x2 crosstab containing the values
+#' [[a, b], [c, d]]
+chi2 <- function(a,b,c,d) {
+  ooe <- function(o, e) {(o-e)*(o-e) / e}
+  tot = 0.0 + a+b+c+d
+  a = as.numeric(a)
+  b = as.numeric(b)
+  c = as.numeric(c)
+  d = as.numeric(d)
+  (ooe(a, (a+c)*(a+b)/tot)
+   +  ooe(b, (b+d)*(a+b)/tot)
+   +  ooe(c, (a+c)*(c+d)/tot)
+   +  ooe(d, (d+b)*(c+d)/tot))
+}
+
+binom.coef.log <- function(n, k) {
+  bcl_func <- function(n, k) sum(log(((n-k+1):n) / ((k-k+1):k)))
+  mapply(bcl_func, n, k)
+}
+fishers.exact <- function(a,b,c,d){  
+  n = a+b+c+d
+  log_p = binom.coef.log(a+b,a) + binom.coef.log(c+d,c) - binom.coef.log(n,a+c)
+  exp(log_p)
+}
+
+getContextOccurence <- function(m1, m2=m1){
+  m2@x[Matrix::which(m2@x > 0)] = 1
+  mat = Matrix::crossprod(m1,m2)
+  mat[is.na(mat)] = 0
+  mat
+}
+
+smooth_prob <- function(succes, n, vocabulary_siz=NULL, smoothing_parameter=1){
+  if(is.null(vocabulary_size)) {
+    (word_occ + smoothing_parameter) / (n + smoothing_parameter)
+  } else{
+    (word_occ + smoothing_parameter) / (n + (vocabulary_size*smoothing_parameter))
+  }
+}
+
+#' Get wordassociations based on ratio and chi-2
+#' 
+#' Calculate wordassociations (x -> y) as the ratio of the p
+#' 
+#' @param dtm the main document-term matrix
+#' @return A dataframe representing and edge.list
+#' @export
+chi2_wordassociations <- function(dtm, odds.ratio.thres=1, chi.p.thres=0.05, fisher.p.thres=0.05, smoothing_parameter=1, use.wordcount=T, return.graph=T) {
+  d = coOccurenceDistributionTable(dtm, use.wordcount)
+  
+  d$prob_y_if_x = (d$y_if_x / d$n_if_x)
+  d$prob_y_ifnot_x = (d$y_ifnot_x / d$n_ifnot_x)
+  d$prob_ratio = d$prob_y_if_x / d$prob_y_ifnot_x
+  d$odds_ratio = (d$prob_y_if_x / (1 + d$prob_y_if_x)) / (d$prob_y_ifnot_x / (1 + d$prob_y_ifnot_x))
+  d = d[d$odds_ratio > odds.ratio.thres,]
+
+  d$chi = chi2(d$y_if_x, 
+               d$y_ifnot_x, 
+               d$n_if_x-d$y_if_x, 
+               d$n_ifnot_x-d$y_ifnot_x)
+  d$chi.p = 1-pchisq(d$chi, 1)
+  
+  d$fisher.p = fishers.exact(d$y_if_x, 
+                             d$y_ifnot_x, 
+                             d$n_if_x-d$y_if_x, 
+                             d$n_ifnot_x-d$y_ifnot_x)
+  
+  d = d[d$chi.p < chi.p.thres,]  
+  d = d[d$fisher.p < fisher.p.thres,]  
+  
+  d = d[!d$x == d$y,]
+  d$x = colnames(dtm)[d$x]
+  d$y = colnames(dtm)[d$y]
+  d$n = d$y_if_x
+  
+  if(return.graph){
+    print(head(d))
+    g = graph.data.frame(d[,c('x','y')])
+    E(g)$odds_ratio = d$odds_ratio
+    E(g)$smooth_odds_ratio = d$odds_ratio
+    E(g)$weight = d$odds_ratio / (1 + d$odds_ratio)
+    
+    V(g)$freq = colSums(dtm)[match(V(g)$name, colnames(dtm))]
+    return(g)
+  } else return(d[,c('x','y', 'n', 'prob_ratio', 'odds_ratio','chi','chi.p', 'fisher.p')])
+}
+
+coOccurenceDistributionTable <- function(dtm, use.wordcount=T, smooth_param=1){
+  if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
+  dtm = as(dtm, 'dgCMatrix')
+  
+  if(use.wordcount){
+    conocc = as(getContextOccurence(dtm), 'dgTMatrix')    
+    d = data.frame(x=conocc@j+1, y=conocc@i+1) 
+    d$y_if_x= conocc@x # how often did y occur in documents in which x occured
+    d$y_ifnot_x = Matrix::colSums(dtm)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
+    d$n_if_x = Matrix::colSums(conocc)[d$x] # how many words occured in documents where x occured
+    d$n_ifnot_x = sum(dtm) - d$n_if_x # how many words occured in documents where x did not occur
+    
+    d$y_if_x = d$y_if_x + smooth_param
+    d$y_ifnot_x = d$y_ifnot_x + smooth_param
+    vocabulary_if_x = Matrix::colSums(conocc > 0)[d$x]
+    vocabulary = Matrix::colSums(dtm) 
+    vocabulary_ifnot_x = sapply(1:ncol(dtm), function(x) sum(vocabulary > Matrix::colSums(dtm[dtm[,x] > 0, ,drop=F])))
+    vocabulary_ifnot_x = vocabulary_ifnot_x[d$x]
+    d$n_if_x = d$n_if_x + vocabulary_if_x*smooth_param
+    d$n_ifnot_x = d$n_ifnot_x + ncol(dtm)*smooth_param
+    
+  } else {
+    conocc = as(getCoOccurence(dtm), 'dgTMatrix')  
+    d = data.frame(x=conocc@j+1, y=conocc@i+1) 
+    d$y_if_x= conocc@x # how often did y occur in documents in which x occured
+    d$y_ifnot_x = colSums(dtm)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
+    d$n_if_x = colSums(dtm > 0)[d$x] # in how many documents did x occur
+    d$n_ifnot_x = nrow(dtm) - d$n_if_x # in how many documents did x not occur
+    
+    d$y_if_x = d$y_if_x + smooth_param
+    d$y_ifnot_x = d$y_ifnot_x + smooth_param
+    d$n_if_x = d$n_if_x + smooth_param
+    d$n_ifnot_x = d$n_ifnot_x + smooth_param
+  }
+  d
+}
+
+#' Get wordassociations based on ratio and chi-2
+#' 
+#' Calculate wordassociations (x -> y) as the ratio of the p
+#' 
+#' @param dtm the main document-term matrix
+#' @return A dataframe representing and edge.list
+#' @export
+chi2_wordassociations_alternative <- function(dtm, ratio.thres=1, p.thres=0.05, smoothing_parameter=1, return.graph=T) {
+  if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
+  dtm = as(dtm, 'dgCMatrix')
+  conocc = as(getContextOccurence(dtm), 'dgTMatrix')  
+  
+  d = data.frame(x=conocc@j+1, y=conocc@i+1) 
+  d$y_if_x= conocc@x # how often did y occur in documents in which x occured
+  d$y_ifnot_x = diag(conocc)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
+  d$n_if_x = colSums(conocc)[d$x] # how many words occured in documents where x occured
+  d$n_ifnot_x = sum(dtm) - d$n_if_x # how many words occured in documents where x did not occur
+  
+  d$chi = chi2(d$y_if_x, 
+               d$y_ifnot_x, 
+               d$n_if_x-d$y_if_x, 
+               d$n_ifnot_x-d$y_ifnot_x)
+  d$p = 1-pchisq(d$chi, 1)
+  d = d[d$p < p.thres,]  
+  
+  
+  d$odds_ratio = (d$y_if_x/d$n_if_x) / (d$y_ifnot_x/d$n_ifnot_x)
+  d = d[d$odds_ratio > ratio.thres,]
+  d$smooth_odds_ratio = smooth_rel(d$y_if_x, d$n_if_x, nrow(conocc), smoothing_parameter) / smooth_rel(d$y_ifnot_x, d$n_ifnot_x, nrow(conocc), smoothing_parameter)
+  
+  d = d[!d$x == d$y,]
+  d$x = colnames(conocc)[d$x]
+  d$y = colnames(conocc)[d$y]
+  d$n = d$y_if_x
+  
+  if(return.graph){
+    g = graph.data.frame(d[,c('x','y')])
+    E(g)$odds_ratio = d$odds_ratio
+    E(g)$smooth_odds_ratio = d$smooth_odds_ratio
+    E(g)$weight = d$smooth_odds_ratio / (1 + d$smooth_odds_ratio)
+    
+    V(g)$freq = colSums(dtm)[match(V(g)$name, colnames(dtm))]
+    return(g)
+  } else return(d[,c('x','y', 'n', 'odds_ratio','smooth_odds_ratio','chi','p')])
+}

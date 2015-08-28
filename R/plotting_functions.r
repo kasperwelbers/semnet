@@ -18,7 +18,6 @@ setVertexColors <- function(g, cluster){
   V(g)$color = 'cadetblue1'
   if(!is.null(cluster)){
     pal = substr(rainbow(length(unique(cluster)), s=0.6,alpha=0.5), 1,7)
-    
     duplicates = unique(cluster[duplicated(cluster)])
     cluster = match(cluster, duplicates) # re-index clusters, and setting isolates to NA
     V(g)$color[!is.na(cluster)] = pal[cluster[!is.na(cluster)]]
@@ -36,6 +35,8 @@ setVertexAttributes <- function(g, size, cluster){
   V(g)$size= rescale(size^0.4, to=c(2,15))
   V(g)$label.color = 'black'
   V(g)$label.cex = rescale(size, to=c(0.7,1.2))
+  print('check')
+  print(V(g)$name)
   V(g)$label = V(g)$name
   g
 }
@@ -46,4 +47,5 @@ setEdgeAttributes <- function(g){
   E(g)$color='lightgrey'
   g
 }
+
 
