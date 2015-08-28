@@ -88,7 +88,7 @@ backbone.alpha <- function(g, k.is.Nvertices=F){
   if(is.directed(g) & k.is.Nvertices) k = k + ncol(mat)
   
   edgelist_ids = get.edgelist(g, names=F)
-  alpha_ij = calcAlpha2(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
+  alpha_ij = calcAlpha(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
   alpha_ji = Matrix::t(calcAlpha(Matrix::t(mat), weightsum, k))[edgelist_ids] # alpha from the perspective of the 'to' node.
   alpha_ij[alpha_ji < alpha_ij] = alpha_ji[alpha_ji < alpha_ij] # select lowest alpha, because an edge can be 'significant' from the perspective of both the 'from' and 'to' node. 
   alpha_ij
