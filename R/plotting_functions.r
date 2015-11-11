@@ -35,8 +35,6 @@ setVertexAttributes <- function(g, size, cluster){
   V(g)$size= rescale(size^0.4, to=c(2,15))
   V(g)$label.color = 'black'
   V(g)$label.cex = rescale(size, to=c(0.7,1.2))
-  print('check')
-  print(V(g)$name)
   V(g)$label = V(g)$name
   g
 }

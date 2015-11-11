@@ -59,13 +59,13 @@ ecount(g_backbone)
 
 Now there are only 100 vertices and 255 edge left. This is a network we can interpret. Let's plot!
 
-```{r}
+```{r, fig.width=7, fig.height=7}
 plot(g_backbone)
 ```
 
 Nice, but still a bit messy. We can take some additional steps to focus the analysis and add additional information. First, we can look only at the largest connected component, thus ignoring small islands of terms such as `math` and `science`. 
 
-```{r}
+```{r, fig.width=7, fig.height=7}
 # select only largest connected component
 g_backbone = decompose.graph(g_backbone, max.comps=1)[[1]]
 plot(g_backbone)
@@ -76,7 +76,7 @@ Next, it would be interesting to take into account how often each term occured. 
 The output of the (windowed)coOccurenceNetwork function by default contains the vertex attribute `freq`, which can be used to set the vertex sizes. To find clusters, several community detection algorithms are available. To use this information for visualization some basic understanding of plotting igraph objects is required, which is out of the scope of this tutorial. We do provide a function named `setNetworkAttributes` which deals with these and some other visualization attributes. 
 
 
-```{r}
+```{r, fig.width=7, fig.height=7}
 # add vertex cluster membership based on edge.betweenness.community clustering
 V(g_backbone)$cluster = edge.betweenness.community(g_backbone)$membership
 
