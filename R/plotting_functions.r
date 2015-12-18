@@ -32,15 +32,15 @@ setVertexAttributes <- function(g, size, cluster){
     size = degree(g)
     message('No size attribute is given. Vertex size instead based on degree')
   }
-  V(g)$size= rescale(size^0.4, to=c(2,15))
+  V(g)$size= scales::rescale(size^0.4, to=c(2,15))
   V(g)$label.color = 'black'
-  V(g)$label.cex = rescale(size, to=c(0.7,1.2))
+  V(g)$label.cex = scales::rescale(size, to=c(0.7,1.2))
   V(g)$label = V(g)$name
   g
 }
 
 setEdgeAttributes <- function(g){
-  E(g)$width = rescale(E(g)$weight, to=c(1,10))
+  E(g)$width = scales::rescale(E(g)$weight, to=c(1,10))
   E(g)$arrow.size= E(g)$width/10
   E(g)$color='lightgrey'
   g
