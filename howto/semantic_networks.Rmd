@@ -1,3 +1,6 @@
+---
+output: pdf_document
+---
 Creating semantic networks
 ========================================================
 
@@ -9,6 +12,7 @@ We start with a simple example.
 
 ```{r}
 library(semnet)
+library(printr)
 data(simple_dtm)
 dtm
 ```

@@ -8,7 +8,7 @@
 #' @export
 coOccurenceNetwork <- function(dtm, measure='cooccurence'){
   if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
-  dtm = as(dtm, 'dgCMatrix')
+  dtm = as(as(dtm, 'dgCMatrix'), 'dgTMatrix')
   if(measure == 'cosine') {
     mat = as(getCosine(dtm), 'dgCMatrix')
     g = graph.adjacency(mat, mode='upper', diag=F, weighted=T)
@@ -51,13 +51,15 @@ getConditionalProbability <- function(m1, m2=m1){
   mat
 }
 
-getCosine <- function(m1, m2=m1){
-  norm.x = sqrt(Matrix::colSums(m1^2))
-  norm.y = sqrt(Matrix::colSums(m2^2))
-  mat = Matrix::crossprod(m1,m2)
-  mat = mat / Matrix::tcrossprod(norm.x, norm.y)
-  mat[is.na(mat)] = 0
-  mat
+getCosine <- function(m1, m2=NULL){
+  norm = sqrt(Matrix::colSums(m1^2))
+  m1@x = m1@x / norm[m1@j+1]  
+  if(!is.null(m2)){
+    norm = sqrt(Matrix::colSums(m2^2))
+    m2@x = m2@x / norm[m2@j+1]
+    cp = Matrix::crossprod(m1,m2) 
+  } else cp = Matrix::crossprod(m1)
+  cp
 }
 
 ##### windowed adjacency functions #####
