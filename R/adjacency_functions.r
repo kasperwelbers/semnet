@@ -75,13 +75,27 @@ stretchLocation <- function(location, context, window.size){
   return(location + multiplier_vector)
 }
 
-locationMatrix <- function(i, j, shifts=0, count.once=T){
+locationMatrix <- function(i, j, shifts=0, count.once=T, distance.as.value=F){
   mat = spMatrix(max(i), max(j))
+  
+  shifts = shifts[order(abs(shifts))] # order from 0 to higher (required if distance.as.value = T)
   for(shift in shifts){
     i_shift = i + shift
     select = i_shift > 0 & i_shift <= max(i)
-    mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(1, sum(select))) 
+    if(distance.as.value){
+      mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(abs(shift)+1, sum(select))) 
+    } else{
+      mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(1, sum(select)))   
+    }
   }
+  
+  if(distance.as.value){
+    ## remove duplicates. since the stacked triples are ordered by shifts, this leaves the shortest distance to a term in case of duplicate cells
+    count.once = F
+    select = !duplicated(data.frame(mat@i, mat@j))
+    mat = spMatrix(nrow(mat), ncol(mat), mat@i[select]+1, mat@j[select]+1, mat@x[select])
+  }
+  
   mat = mat[i,]
   mat = as(mat, 'dgCMatrix')
   if(count.once) mat@x[mat@x>0] = 1
@@ -99,7 +113,7 @@ locationMatrix <- function(i, j, shifts=0, count.once=T){
 #' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
 #' @return A list with two matrices. location.mat gives the specific location of a term, and window.mat gives the window in which each word occured. The rows represent the location of a term, and matches the input of this function (location, term and context). The columns represents terms.
 #' @export
-wordWindowOccurence <- function(location, term, context, window.size=3, two.sided=T){
+wordWindowOccurence <- function(location, term, context, window.size=3, two.sided=T, distance.as.value=F){
   nas = is.na(term)
   if (any(nas)) {
     term = term[!nas]
@@ -118,7 +132,7 @@ wordWindowOccurence <- function(location, term, context, window.size=3, two.side
   term_index = match(term, terms)
   
   location.mat = locationMatrix(location, term_index, 0)
-  window.mat = locationMatrix(location, term_index, shifts)
+  window.mat = locationMatrix(location, term_index, shifts, distance.as.value=distance.as.value)
   
   colnames(location.mat) = colnames(window.mat) = terms
   rownames(location.mat) = rownames(window.mat) = context
@@ -282,7 +296,7 @@ chi2_wordassociations <- function(dtm, odds.ratio.thres=1, chi.p.thres=0.05, fis
   d$n = d$y_if_x
   
   if(return.graph){
-    print(head(d))
+
     g = graph.data.frame(d[,c('x','y')])
     E(g)$odds_ratio = d$odds_ratio
     E(g)$smooth_odds_ratio = d$odds_ratio
