@@ -35,11 +35,11 @@ mergeTermClusters <- function(m, min.similarity=0.95, max.label_length=3){
 termSimilarityNetwork <- function(m, min.similarity){
   if('DocumentTermMatrix' %in% class(m)) m = dtmToSparseMatrix(m) 
   m@x[m@x > 0] = 1
-  sim = crossprod(m) / colSums(m)
+  sim = Matrix::crossprod(m) / Matrix::colSums(m)
   
   sim@x = ifelse(sim@x >= min.similarity, 1, 0)
-  sim = triu(triu(sim) + triu(t(sim))) # sum upper and lower triangle, and only take one
-  sim = which(sim == 2, arr.ind = T) # select all word pairs where conditinal probability is higher than min.similarity in both ways (undirected because of lower tri)
+  sim = Matrix::triu(Matrix::triu(sim) + Matrix::triu(Matrix::t(sim))) # sum upper and lower triangle, and only take one
+  sim = Matrix::which(sim == 2, arr.ind = T) # select all word pairs where conditinal probability is higher than min.similarity in both ways (undirected because of lower tri)
   sim = sim[!sim[,1] == sim[,2],]
   graph.data.frame(sim, directed = F)
 }
@@ -62,7 +62,7 @@ collapseColumns <- function(m, as_mean=T){
   if(as_mean){
     cnames_count = table(colnames(m))
     cnames_count = as.numeric(cnames_count[match(cnames, names(cnames_count))])
-    newm = t(t(newm) / cnames_count)
+    newm = Matrix::t(Matrix::t(newm) / cnames_count)
   }
   colnames(newm) = cnames
   rownames(newm) = rownames(m)

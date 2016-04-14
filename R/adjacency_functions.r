@@ -1,5 +1,4 @@
 
-
 #' Create an adjacency graph from a document term matrix
 #' 
 #' @param dtm a document term matrix, either or not in the dtm format from the `tm` package
@@ -65,13 +64,14 @@ getCosine <- function(m1, m2=NULL){
 ##### windowed adjacency functions #####
 
 stretchLocation <- function(location, context, window.size){
-  ## (location and context need to be sorted on order(context,location))
-  newcontext = which(!duplicated(context))
+  ## makes the word location counter global, and adds dummy locations between contexts to prevent overlapping windows.
+  ## this way, overlapping word windows can be calculated for multiple documents within a single matrix.
+  ## location and context need to be sorted on order(context,location)!!
+  newcontext = which(!duplicated(context)) # where does a new context start
   context.max = location[newcontext-1] + (window.size*2)
-  multiplier_scores = cumsum(c(0,context.max))
-  multiplier_vector = rep(NA, length(context))
-  multiplier_vector[newcontext] = multiplier_scores
-  multiplier_vector = na.locf(multiplier_vector)
+  multiplier_scores = cumsum(c(0,context.max)) # the amount that should be added to the location at the start of each context 
+  repeat_multiplier = c(newcontext[2:length(newcontext)], length(location)+1) - newcontext # the number of times the multiplier scores need to be repeated to match the location vector
+  multiplier_vector = rep(multiplier_scores, repeat_multiplier)
   return(location + multiplier_vector)
 }
 
@@ -139,8 +139,6 @@ wordWindowOccurence <- function(location, term, context, window.size=3, two.side
 
   
   list(location.mat=location.mat, window.mat=window.mat)
-  
-  #calculateAdjacency(location.mat, window.mat)
 }
 
 #' A sliding window approach to calculate the co-occurence of words
@@ -267,7 +265,7 @@ smooth_prob <- function(succes, n, vocabulary_siz=NULL, smoothing_parameter=1){
 #' @param dtm the main document-term matrix
 #' @return A dataframe representing and edge.list
 #' @export
-chi2_wordassociations <- function(dtm, odds.ratio.thres=1, chi.p.thres=0.05, fisher.p.thres=0.05, smoothing_parameter=1, use.wordcount=T, return.graph=T) {
+chi2_wordassociations <- function(dtm, odds.ratio.thres=1, thres=0.05, measure='fisher', smoothing_parameter=1, use.wordcount=T, return.graph=T) {
   d = coOccurenceDistributionTable(dtm, use.wordcount)
   
   d$prob_y_if_x = (d$y_if_x / d$n_if_x)
@@ -276,6 +274,7 @@ chi2_wordassociations <- function(dtm, odds.ratio.thres=1, chi.p.thres=0.05, fis
   d$odds_ratio = (d$prob_y_if_x / (1 + d$prob_y_if_x)) / (d$prob_y_ifnot_x / (1 + d$prob_y_ifnot_x))
   d = d[d$odds_ratio > odds.ratio.thres,]
 
+  
   d$chi = chi2(d$y_if_x, 
                d$y_ifnot_x, 
                d$n_if_x-d$y_if_x, 
@@ -302,7 +301,7 @@ chi2_wordassociations <- function(dtm, odds.ratio.thres=1, chi.p.thres=0.05, fis
     E(g)$smooth_odds_ratio = d$odds_ratio
     E(g)$weight = d$odds_ratio / (1 + d$odds_ratio)
     
-    V(g)$freq = colSums(dtm)[match(V(g)$name, colnames(dtm))]
+    V(g)$freq = col_sums(dtm)[match(V(g)$name, colnames(dtm))]
     return(g)
   } else return(d[,c('x','y', 'n', 'prob_ratio', 'odds_ratio','chi','chi.p', 'fisher.p')])
 }
@@ -311,33 +310,26 @@ coOccurenceDistributionTable <- function(dtm, use.wordcount=T, smooth_param=1){
   if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
   dtm = as(dtm, 'dgCMatrix')
   
+  conocc = as(getContextOccurence(dtm), 'dgTMatrix')    
+  d = data.frame(x=conocc@j+1, y=conocc@i+1) 
+  d$y_if_x= conocc@x # how often did y occur in documents in which x occured
+  d$y_ifnot_x = Matrix::colSums(dtm)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
+  d$n_if_x = Matrix::colSums(conocc)[d$x] # how many words occured in documents where x occured
+  d$n_ifnot_x = sum(dtm) - d$n_if_x # how many words occured in documents where x did not occur
+  
+  d$y_if_x = d$y_if_x + smooth_param
+  d$y_ifnot_x = d$y_ifnot_x + smooth_param
+  
   if(use.wordcount){
-    conocc = as(getContextOccurence(dtm), 'dgTMatrix')    
-    d = data.frame(x=conocc@j+1, y=conocc@i+1) 
-    d$y_if_x= conocc@x # how often did y occur in documents in which x occured
-    d$y_ifnot_x = Matrix::colSums(dtm)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
-    d$n_if_x = Matrix::colSums(conocc)[d$x] # how many words occured in documents where x occured
-    d$n_ifnot_x = sum(dtm) - d$n_if_x # how many words occured in documents where x did not occur
-    
-    d$y_if_x = d$y_if_x + smooth_param
-    d$y_ifnot_x = d$y_ifnot_x + smooth_param
     vocabulary_if_x = Matrix::colSums(conocc > 0)[d$x]
     vocabulary = Matrix::colSums(dtm) 
     vocabulary_ifnot_x = sapply(1:ncol(dtm), function(x) sum(vocabulary > Matrix::colSums(dtm[dtm[,x] > 0, ,drop=F])))
     vocabulary_ifnot_x = vocabulary_ifnot_x[d$x]
     d$n_if_x = d$n_if_x + vocabulary_if_x*smooth_param
-    d$n_ifnot_x = d$n_ifnot_x + ncol(dtm)*smooth_param
+    #d$n_ifnot_x = d$n_ifnot_x + ncol(dtm)*smooth_param
+    d$n_ifnot_x = d$n_ifnot_x + vocabulary_ifnot_x*smooth_param
     
   } else {
-    conocc = as(getCoOccurence(dtm), 'dgTMatrix')  
-    d = data.frame(x=conocc@j+1, y=conocc@i+1) 
-    d$y_if_x= conocc@x # how often did y occur in documents in which x occured
-    d$y_ifnot_x = colSums(dtm)[d$y] - d$y_if_x # how often did y occur in documents in which x did not occur
-    d$n_if_x = colSums(dtm > 0)[d$x] # in how many documents did x occur
-    d$n_ifnot_x = nrow(dtm) - d$n_if_x # in how many documents did x not occur
-    
-    d$y_if_x = d$y_if_x + smooth_param
-    d$y_ifnot_x = d$y_ifnot_x + smooth_param
     d$n_if_x = d$n_if_x + smooth_param
     d$n_ifnot_x = d$n_ifnot_x + smooth_param
   }
