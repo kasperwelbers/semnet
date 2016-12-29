@@ -1,0 +1,143 @@
+---
+title: "Query tutorial"
+author: "Kasper Welbers"
+date: "March 11, 2016"
+output: pdf_document
+---
+
+```{r, echo=F}
+library(printr)
+```
+
+# Searching and coding tokens
+
+This document explains how semnet can be used to search and code tokens in a tokenlist.
+Before we start, we first need to create or load a tokenlist. If this does not ring a bell, please consult the create_tokenlist.Rmd manual first for detailed instructions.
+
+```{r, message=FALSE, warning=FALSE}
+library(semnet)
+text = c('Renewable fuel is better than fossil fuels!',
+           'A fueled debate about fuel',
+           'Mark_Rutte is simply Rutte')
+tokens = asTokenlist(text)
+tokens
+```
+
+Above we see a simple tokenlist. For various purposes, it can be usefull to search tokens or code tokens (i.e. rows) into categories. For instance, if we are interested in political parties, we might want to find all politicians within that party and add them to a single category. This also enables us to analyze semantic networks at a higher aggregated level, using concepts or entities instead of individual words that refer to these concepts.
+
+To do so, we can use queries consisting of multiple words and regular expressions. This is often referred to as a dictionary (see, for instance, quanteda::applyDictionary()). However, a limitation of this dictionary approach is that it is not possible to specify conditions based on surrounding words. For instance, if we are interested in the concept "Renewable fuel", we want to code the word "fuel" only if the surrounding words indicate that it refers to renewable fuel, and now fossil fuels.  
+
+The semnet package therefore offers an extension of the dictionary approach, where dictionary entries can also contain Boolean like conditions (OR, AND and NOT, and the use of parentheses), that can also take word distance into account. Since this makes it more complex than common dictionaries, we instead refer to multiple queries as a "codebook". 
+
+A semnet query consists of two elements: an indicator and a condition. This tutorial first discusses both elements in detail, and introduces the searchQuery function to use individual queries. It concludes with a summary. The use of multiple queries is explained in codebook_tutorial.Rmd. 
+
+# Indicators
+
+The indicator is the actual word, or set of words, that has to match a word in the tokenlist. For example, the word "fuel"
+
+```{r}
+hits = searchQuery(tokens, indicator = 'fuel')
+hits
+```
+
+The output of searchQuery shows: 
+*Which rows in tokens are found (i)
+*The document id (doc_id) and word position (position)
+*The code assigned to the query (code). This is particularly usefull if multiple queries are used with searchQueries().
+*The exact word matched by the query
+
+The reportSummary() function can be used to evaluate hits.
+This shows the number of hits, the frequencies of all words that match the query, and 10 random sentences in which the word occurs.
+
+```{r}
+reportSummary(tokens, hits, kwic_nwords = 100)
+```
+
+## OR statements
+We can also give multiple indicators by using OR statements.
+For convenience, an empty space between words is also interpreted as an OR statement.
+Thus, "fuel OR fuels" is the same as "fuel fuels".
+
+```{r}
+searchQuery(tokens, indicator = 'fuel fuels')
+```
+
+## wildcards
+Often it is usefull to use wildcards in words, for instance to make one term to find "fuel" and "fuels".
+If the ? symbol is used in a word, any single character can be used at this place (thus also at least one character).
+If the * symbol is used, any number of characters can be used at this place (including no characters at all)
+
+```{r}
+searchQuery(tokens, indicator = 'fuel*')
+```
+
+# Conditions
+Sometimes, we only want to find a word if certain conditions are satisfied. 
+For instance, if we want to look specifically where renewable fuels are discussed, we do not want to find fossil fuels.
+Therefore, a condition can be given for a query.
+
+A condition should be interpreted as an AND statement.
+Thus, the indicator is only accepted if the condition is TRUE. 
+In the following example, we set the condition that "renewable" OR "green" OR "clean" also need to occur within the same document as the indicator.
+
+```{r}
+hits = searchQuery(tokens, indicator = 'fuel*', condition = 'renewable green clean')
+reportSummary(tokens, hits)$keywordIC
+```
+
+Even more specifically, it can also be set that the condition has to occur within a given word distance of the indicator term (which we refer to as a window).
+This word window can be set in two ways.
+One is to use the default.window parameter.
+
+```{r}
+hits = searchQuery(tokens, indicator = 'fuel*', condition = 'renewable green clean', 
+                   default.window = 2)
+reportSummary(tokens, hits)$keywordIC
+```
+
+The other way is to set the word window for specific words, by using the ~ symbol.
+For example, "renewable~3 green~5" would mean that either "renewable" has to occur within 3 words of the indicator, OR "green" has to occur within 5 words.
+
+Finally, if a default.window is used, then the ~ symbol can also be used to ignore this window for specific words, by using word~d (where 'd' stands for document). 
+
+## Complex conditions
+Conditions can also contain more complex boolean operators. 
+They can contain AND statements, and parentheses can be used.
+For example, the condition "(united AND states) OR us" would be true if either "us" occurs, OR if "united" AND "states" occur (within the given word distance).
+
+Conditions can contain NOT statements. For example, "fuel\* NOT fuell" matches al words starting with fuel, except fuell (a baseball player, apparently). Can also be used in combination with a single \* to refer to anything, as in: "\* NOT fuell".
+
+Conditions can also use the ? and * wildcards, as described above
+
+In some cases, we only want the condition to be satisfied at least once in an article.
+For instance, consider the second article in the example tokens: "Mark_Rutte is simply Rutte".
+Here, we can assume that the second Rutte is Mark Rutte. 
+It is common that a person is first mentioned by full name, and then only by last name. 
+To take this into account, we can use the "condition_once" parameter, which means that if the condition is satisfied once in an article, all occurences of the indicator are counted.
+
+```{r}
+searchQuery(tokens, indicator = 'rutte', condition = 'mark~2') 
+searchQuery(tokens, indicator = 'rutte', condition = 'mark~2', condition_once = T) 
+```
+
+# Summary
+
+A query consists of an indicator, and optionally a condition.
+
+* *The indicator*
+    + is the actual text that has to be found in the token
+    + can contain multiple words with OR statement (and empty spaces are also considered OR statements)
+    + CANNOT contain AND or NOT statements (this is what the condition is for)
+    + accepts the ? wildcard, which means that any single character can be used in this place
+    + accepts the * wildcard, which means that any number of characters can be used in this place
+
+* *The condition*
+    + has to be TRUE for the indicator to be accepted. Thus, if a condition is given, the query can be interpreted as: indicator AND condition
+    + can contain complex boolean statements, using AND, OR and NOT statements, and using parentheses
+    + accepts the ? and * wildcards
+    + can be specified for a maximum word distance of the indicator. The terms in the condition are looked up within this word distance. The default word distance can be given with the default.window parameter. More specifically, individual terms can be given a custom word distance using the ~ symbol, where "word~50" means that "word" is looked up within 50 words of the indicator. If a default.window is used, it is also possible to ignore the word distance for specific terms by using word~d (where d stands for document).
+
+* *Parameters*:
+    + default.window -> determines the default word distance of the condition terms to the indicator (thus, if no specific word distance is set with the ~ symbol)
+    + condition_once -> if TRUE, then if the condition is satisfied at least once in an article, all occurences of the indicator are accepted. 
+  

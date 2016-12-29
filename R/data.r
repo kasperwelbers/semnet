@@ -16,6 +16,15 @@ NULL
 #' @format sotu.tokens: A dataframe of tokens produced by using Stanford CoreNLP to lemmatize the State of the Union speeches; and sotu.meta the metadata for these documents
 NULL
 
+#' Tokens from Bush and Obama's State of the Union addresses
+#' 
+#' @docType data
+#' @keywords datasets
+#' @name sotu_tokenlist
+#' @usage data(sotu_tokenlist)
+#' @format sotu.tokens: A dataframe of tokens produced by using Stanford CoreNLP to lemmatize the State of the Union speeches; and sotu.meta the metadata for these documents
+NULL
+
 #' Document metadata from Bush and Obama's State of the Union addresses
 #' 
 #' @docType data

@@ -1,18 +1,20 @@
 ---
 output: pdf_document
 ---
-Creating semantic networks
-========================================================
+##Creating cooccurence networks
 
-One way to create semantic networks is to calculate how often words co-occur together. This co-occurence reflects a semantic relation, because it indicates that the meaning of these words is related.
+```{r, echo=F}
+library(printr)
+```
 
-In this howto we demonstrate two functions to calculate the co-occurence of words. The first is the `coOccurenceNetwork` function, which calculates the co-occurence of words within documents based on a document term matrix. The second is the `windowedCoOccurenceNetwork`, which calculates how often words co-occur within a given word distance based on tokenized texts.
+In this howto we demonstrate two functions to calculate the co-occurence of words. The first is the `coOccurenceNetwork` function, which calculates the co-occurence of words within documents based on a document term matrix or tokenlist. The second is the `windowedCoOccurenceNetwork`, which calculates how often words co-occur within a given word distance based on a tokenlist.
 
-We start with a simple example. 
+
+
+# Co-occurence within the same documents
 
 ```{r}
 library(semnet)
-library(printr)
 data(simple_dtm)
 dtm
 ```
@@ -21,10 +23,21 @@ dtm
 
 ```{r}
 g = coOccurenceNetwork(dtm)
-plot(g, vertex.size=V(g)$freq*10)
+plot_semnet(g)
 ```
 
-Of course, this method mainly becomes interesting when lots of documents are analyzed. This could for instance show how often the word 'nuclear' is used in the context of 'energy', compared to the context of 'weapons' and 'waste'. Thus, it can provide an answer to the question: if one think or talks about nuclear technology, what discourses, frames or topics come to mind?
+The output of coOccurenceNetwork is a graph from the igraph package. The semnet package offers the plot\_semnet() function, which automatically sets various plotting parameters that work well for visualizing moderate sized semantic networks (i.e. below 200 nodes, and depending on the size of the plotting device). More detailed instructions for how the plot\_semnet() function can be used are given below.
+
+If a different format is preferred, the information for the nodes and edges can easily be extracted with the get.data.frame() function.
+
+```{r}
+get.data.frame(g, 'vertices') # extract vertices with meta information 
+get.data.frame(g, 'edges')    # extract edges with meta information
+```
+
+Finally, note that coOccurenceNetwork can also be given a tokenlist as input, in which case the tokenlist is transformed into a DTM using the tokenlistToDTM() function.
+
+# Co-occurence within a given word distance
 
 To demonstrate the `windowedCoOccurenceNetwork` function we'll use a larger dataset, consisting of the state of the union speeches of Obama and Bush (1090 paragraphs). We'll filter the data on part-of-speech tags to contain only the nouns, names and adjectives.
 
@@ -39,7 +52,7 @@ We are interested in three columns in the `sotu.tokens` dataframe:
 * The `aid` column, which is a unique id for the document, in this case for a paragraph in the SotU speeches. We refer to this as the `context` in which a word occurs.
 * The `id` column, which is the specific location of a term within a context. For example, the first row in sotu.tokens shows that in context `111541965`, the term `unfinished` was the fourth term.
 
-These columns are the main arguments for the `windowedCoOccurenceNetwork` function. In addition, the `window.size` argument determines the word distance within which words need to occur to be counted as a co-occurence.
+
 
 ```{r}
 g = windowedCoOccurenceNetwork(location=sotu.tokens$id,

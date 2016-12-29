@@ -1,29 +1,33 @@
 
-#' Create an adjacency graph from a document term matrix
+#' Create a co-occurence network
 #' 
-#' @param dtm a document term matrix, either or not in the dtm format from the `tm` package
+#' @param x either a document-term matrix (DTM) or a tokenlist. 
 #' @param measure the measure to calcualte adjacency. Currently supports cosine and conditional probability
 #' @return A graph in the Igraph format in which edges represent the adjacency of terms
 #' @export
-coOccurenceNetwork <- function(dtm, measure='cooccurence'){
-  if('DocumentTermMatrix' %in% class(dtm)) dtm = dtmToSparseMatrix(dtm)
-  dtm = as(as(dtm, 'dgCMatrix'), 'dgTMatrix')
+coOccurenceNetwork <- function(x, measure='cooccurence', doc.col=getOption('doc.col','doc_id'), position.col=getOption('position.col','position'), word.col=getOption('word.col','word')){
+  if('data.frame' %in% class(x)) {
+    verifyTokenlistColumns(tokenlist, doc.col, position.col, word.col)
+    x = tokenlistToDTM(x, doc.col, position.col, word.col)
+  }
+  if('DocumentTermMatrix' %in% class(x)) x = dtmToSparseMatrix(x)
+
+  x = as(as(x, 'dgCMatrix'), 'dgTMatrix')
   if(measure == 'cosine') {
-    mat = as(getCosine(dtm), 'dgCMatrix')
+    mat = as(getCosine(x), 'dgCMatrix')
     g = graph.adjacency(mat, mode='upper', diag=F, weighted=T)
   }
   if(measure == 'cooccurence') {
-    mat = getCoOccurence(dtm)
+    mat = getCoOccurence(x)
     g = graph.adjacency(mat, mode='upper', diag=F, weighted=T)
   }
   if(measure == 'conprob') {
-    mat = getConditionalProbability(dtm)
+    mat = getConditionalProbability(x)
     g = graph.adjacency(mat, mode='directed', diag=F, weighted=T)
   }
-  V(g)$freq = col_sums(dtm)
-  #edgelist = Matrix::which(mat>0, arr.ind=T)
-  #edgelist = data.frame(x=rownames(mat)[edgelist[,1]], y=colnames(mat)[edgelist[,2]], weight=mat@x[mat@x>0])
-  #edgelist
+  V(g)$freq = col_sums(x)
+  g = set.edge.attribute(g, measure, value=E(g)$weight)
+  class(g) = c('semnet',class(g))
   g
 }
 
@@ -61,129 +65,29 @@ getCosine <- function(m1, m2=NULL){
   cp
 }
 
-##### windowed adjacency functions #####
-
-stretchLocation <- function(location, context, window.size){
-  ## makes the word location counter global, and adds dummy locations between contexts to prevent overlapping windows.
-  ## this way, overlapping word windows can be calculated for multiple documents within a single matrix.
-  ## location and context need to be sorted on order(context,location)!!
-  newcontext = which(!duplicated(context)) # where does a new context start
-  context.max = location[newcontext-1] + (window.size*2)
-  multiplier_scores = cumsum(c(0,context.max)) # the amount that should be added to the location at the start of each context 
-  repeat_multiplier = c(newcontext[2:length(newcontext)], length(location)+1) - newcontext # the number of times the multiplier scores need to be repeated to match the location vector
-  multiplier_vector = rep(multiplier_scores, repeat_multiplier)
-  return(location + multiplier_vector)
-}
-
-locationMatrix <- function(i, j, shifts=0, count.once=T, distance.as.value=F){
-  mat = spMatrix(max(i), max(j))
-  
-  shifts = shifts[order(abs(shifts))] # order from 0 to higher (required if distance.as.value = T)
-  for(shift in shifts){
-    i_shift = i + shift
-    select = i_shift > 0 & i_shift <= max(i)
-    if(distance.as.value){
-      mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(abs(shift)+1, sum(select))) 
-    } else{
-      mat = mat + spMatrix(nrow=max(i), ncol=max(j), i=i_shift[select], j=j[select], rep(1, sum(select)))   
-    }
-  }
-  
-  if(distance.as.value){
-    ## remove duplicates. since the stacked triples are ordered by shifts, this leaves the shortest distance to a term in case of duplicate cells
-    count.once = F
-    select = !duplicated(data.frame(mat@i, mat@j))
-    mat = spMatrix(nrow(mat), ncol(mat), mat@i[select]+1, mat@j[select]+1, mat@x[select])
-  }
-  
-  mat = mat[i,]
-  mat = as(mat, 'dgCMatrix')
-  if(count.once) mat@x[mat@x>0] = 1
-  mat
-}
-
-#' Gives the window in which a term occured in a matrix.
-#' 
-#' This function returns the occurence of words (location.matrix) and the window of occurence (window.matrix). This format enables the co-occurence of words within sliding windows (i.e. word distance) to be calculated by multiplying location.matrix with window.matrix. 
-#' 
-#' @param location An integer vector giving the position of terms in a given context (e.g., document, paragraph, sentence) 
-#' @param term A character vector giving the terms
-#' @param context A vector giving the context in which terms occur (e.g., document, paragraph, sentence)
-#' @param window.size The distance within which words should occur from each other to be counted as a co-occurence.
-#' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
-#' @return A list with two matrices. location.mat gives the specific location of a term, and window.mat gives the window in which each word occured. The rows represent the location of a term, and matches the input of this function (location, term and context). The columns represents terms.
-#' @export
-wordWindowOccurence <- function(location, term, context, window.size=3, two.sided=T, distance.as.value=F){
-  nas = is.na(term)
-  if (any(nas)) {
-    term = term[!nas]
-    location = location[!nas]
-    context = context[!nas]
-  }
-  
-  ord = order(context, location)
-  location = location[ord]
-  term = term[ord]
-  context = context[ord]
-  
-  location = stretchLocation(location,context,window.size=window.size)
-  shifts = if(two.sided) -window.size:window.size else 0:window.size
-  terms = unique(term)
-  term_index = match(term, terms)
-  
-  location.mat = locationMatrix(location, term_index, 0)
-  window.mat = locationMatrix(location, term_index, shifts, distance.as.value=distance.as.value)
-  
-  colnames(location.mat) = colnames(window.mat) = terms
-  rownames(location.mat) = rownames(window.mat) = context
-
-  
-  list(location.mat=location.mat, window.mat=window.mat)
-}
-
-#' A sliding window approach to calculate the co-occurence of words
-#' 
-#' @param location An integer vector giving the position of terms in a given context (e.g., document, paragraph, sentence) 
-#' @param term A character vector giving the terms
-#' @param context A vector giving the context in which terms occur (e.g., document, paragraph, sentence)
-#' @param window.size The distance within which words should occur from each other to be counted as a co-occurence.
-#' @param output.per.context Logical. If True, co-occurences are reported per context (beware that this takes longer and can lead to huge output)
-#' @param two.sided Logical. If false, it is only counted how often a word occured `after` another word within the given window size
-#' @return An edgelist (data.frame) with columns x, y and weight, in which weight represents the number of times y occured within a [window.size] word distance from x. If output.per.context is True, co-occurences are reported per context, and the edgelist has an additional context column.
-#' @export
-windowedCoOccurenceNetwork <- function(location, term, context, window.size=10, output.per.context=F, two.sided=T){
-  if(min(location) == 0) location = location + 1 # if indexing starts at 0, set to 1
-  mat = wordWindowOccurence(location, term, context, window.size, two.sided)
-  if(output.per.context) {
-    calculateAdjacencyPerContext(mat$location.mat, mat$window.mat)
-  } else {
-    calculateAdjacency(mat$location.mat, mat$window.mat)
-  }
-}
-
-calculateAdjacency <- function(location.mat, window.mat){
-  adj = Matrix::crossprod(location.mat, window.mat)
+calculateAdjacency <- function(position.mat, window.mat){
+  adj = Matrix::crossprod(position.mat, window.mat)
   g = graph.adjacency(adj, mode='directed', weighted=T, diag=F)
-  V(g)$freq = col_sums(location.mat)
+  V(g)$freq = col_sums(position.mat)
+  E(g)$cooccurence = E(g)$weight
+  E(g)$weight_pct = E(g)$weight / V(g)$freq[get.edgelist(g, names = F)[,1]]
+  class(g) = c('semnet',class(g))
   g
-  #edgelist = Matrix::which(adj>0, arr.ind=T)
-  #edgelist = data.frame(x=rownames(adj)[edgelist[,1]], y=colnames(adj)[edgelist[,2]], weight=adj@x[adj@x>0])
-  #edgelist
 }
 
-aggCoOc <- function(x, location.mat, window.mat){
-  cooc = location.mat[,x] & window.mat
+aggCoOc <- function(x, position.mat, window.mat){
+  cooc = position.mat[,x] & window.mat
   cooc = as(cooc, 'lgTMatrix')
   cooc = data.frame(x=x, y=cooc@j+1, context=cooc@i+1, weight=cooc@x)
   cooc = cooc[!cooc$x == cooc$y,]
   ddply(cooc, .(x,y,context), summarize, weight=sum(weight))
 }
 
-calculateAdjacencyPerContext <- function(location.mat, window.mat) {
-  adj = ldply(1:ncol(location.mat), function(x) aggCoOc(x, location.mat, window.mat))
-  adj$context = rownames(location.mat)[adj$context]
-  adj$x = as.factor(colnames(location.mat)[adj$x])
-  adj$y = as.factor(colnames(location.mat)[adj$y])
+calculateAdjacencyPerContext <- function(position.mat, window.mat) {
+  adj = ldply(1:ncol(position.mat), function(x) aggCoOc(x, position.mat, window.mat))
+  adj$context = rownames(position.mat)[adj$context]
+  adj$x = as.factor(colnames(position.mat)[adj$x])
+  adj$y = as.factor(colnames(position.mat)[adj$y])
   adj
 }
 
@@ -220,17 +124,24 @@ setMatrixDims <- function(mat, rowdim, coldim){
 
 #' Compute the chi^2 statistic for a 2x2 crosstab containing the values
 #' [[a, b], [c, d]]
-chi2 <- function(a,b,c,d) {
-  ooe <- function(o, e) {(o-e)*(o-e) / e}
-  tot = 0.0 + a+b+c+d
-  a = as.numeric(a)
-  b = as.numeric(b)
-  c = as.numeric(c)
-  d = as.numeric(d)
-  (ooe(a, (a+c)*(a+b)/tot)
-   +  ooe(b, (b+d)*(a+b)/tot)
-   +  ooe(c, (a+c)*(c+d)/tot)
-   +  ooe(d, (d+b)*(c+d)/tot))
+chi2 <- function(a,b,c,d, yates_correction=rep(F, length(a)), autocorrect=F){
+  n = a+b+c+d
+  sums = cbind(c1 = a+c, c2 = b+d, r1 = a+b, r2 = c+d)
+
+  if(autocorrect){
+    ## apply Cochrans criteria: no expected values below 1 and less than 20% of cells empty (which means none in a 2x2 design)
+    ## if these are violated, use the yates_correction
+    ## http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2041889/
+    e = cbind(sums[,'c1'] / n, sums[,'c2'] / n)
+    e = cbind(e * sums[,'r1'], e * sums[,'r2'])
+    c1 = rowSums(e < 1) > 0          # at least one expected value below 1
+    c2 = rowSums(sums < 5) > 0       # at least one cell below 5
+    yates_correction = ifelse(c1 | c2, T, F)
+  }
+  x = a*d - b*c
+  x = ifelse(yates_correction, abs(x) - n/2, x)
+  chi = n*x^2 / (sums[,'c1'] * sums[,'c2'] * sums[,'r1'] * sums[,'r2'])
+  ifelse(is.na(chi), 0, chi)
 }
 
 binom.coef.log <- function(n, k) {
@@ -250,12 +161,34 @@ getContextOccurence <- function(m1, m2=m1){
   mat
 }
 
-smooth_prob <- function(succes, n, vocabulary_siz=NULL, smoothing_parameter=1){
+smooth_prob <- function(succes, n, vocabulary_size=NULL, smoothing_parameter=1){
   if(is.null(vocabulary_size)) {
     (word_occ + smoothing_parameter) / (n + smoothing_parameter)
   } else{
     (word_occ + smoothing_parameter) / (n + (vocabulary_size*smoothing_parameter))
   }
+}
+
+edgeChi2 <- function(g, wordfreq.col='freq', wordcooc.col='cooccurence', vocabulary=NULL){
+  freq = get.vertex.attribute(g, wordfreq.col)
+  cooc = get.edge.attribute(g, wordcooc.col)
+  e = get.edgelist(g, names = F)
+  if(is.null(vocabulary)) vocabulary = structure(freq, names=V(g)$name)
+
+  y_if_x= cooc
+  y_ifnot_x = freq[e[,2]] - cooc
+  
+  x_total_cooc = tapply(cooc, e[,1], sum)
+  n_if_x = x_total_cooc[e[,1]]
+  n_ifnot_x = sum(x_total_cooc) - n_if_x
+  
+  E(g)$chi =  chi2(y_if_x, y_ifnot_x, 
+                   n_if_x - y_if_x, n_ifnot_x - y_ifnot_x,
+                   autocorrect = T)
+  
+  
+  E(g)$chi.p = 1-pchisq(E(g)$chi, 1)
+  g
 }
 
 #' Get wordassociations based on ratio and chi-2
@@ -302,6 +235,7 @@ chi2_wordassociations <- function(dtm, odds.ratio.thres=1, thres=0.05, measure='
     E(g)$weight = d$odds_ratio / (1 + d$odds_ratio)
     
     V(g)$freq = col_sums(dtm)[match(V(g)$name, colnames(dtm))]
+    class(g) = c('semnet',class(g))
     return(g)
   } else return(d[,c('x','y', 'n', 'prob_ratio', 'odds_ratio','chi','chi.p', 'fisher.p')])
 }
@@ -335,6 +269,9 @@ coOccurenceDistributionTable <- function(dtm, use.wordcount=T, smooth_param=1){
   }
   d
 }
+
+
+
 
 #' Get wordassociations based on ratio and chi-2
 #' 
@@ -378,6 +315,11 @@ chi2_wordassociations_alternative <- function(dtm, ratio.thres=1, p.thres=0.05, 
     E(g)$weight = d$smooth_odds_ratio / (1 + d$smooth_odds_ratio)
     
     V(g)$freq = colSums(dtm)[match(V(g)$name, colnames(dtm))]
+    class(g) = c('semnet',class(g))
     return(g)
   } else return(d[,c('x','y', 'n', 'odds_ratio','smooth_odds_ratio','chi','p')])
+}
+
+edgeWeightStatistics <- function(g, edge.coocc.var='weight', vertex.freq.var='freq'){
+  
 }

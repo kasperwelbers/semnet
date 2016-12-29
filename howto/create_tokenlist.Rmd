@@ -1,0 +1,63 @@
+---
+title: "Creating a tokenlist"
+author: "Kasper Welbers"
+date: "March 11, 2016"
+output: pdf_document
+---
+
+```{r, echo=F}
+library(printr)
+library(semnet)
+```
+
+A tokenlist is a data.frame in which each row represents a token (e.g., word, stem, lemma) within a document. In semnet the most basic form of a tokenlist contains three columns:
+*doc_id: The document in which the token occurs
+*position: The position of the token in the document, where 1 is the first token, 2 the second token, etc.
+*word: The token text. Normally the word, but can be also be the stem or lemma of a word, or an n-gram.    
+
+```{r}
+texts = c("First document", "Second document!")
+asTokenlist(texts) # example of a tokenlist
+```
+
+Note that a tokenlist is closely related to a document term matrix (DTM). A DTM is a matrix in which the rows represent documents, the columns represent terms, and the values in the cells indicate how often each term occured in each document. The difference with a tokenlist is that in a DTM the position of the terms in the documents is lost (hence the nickname of a "bag-of-words" approach). 
+
+Thus, a tokenlist contains more information compared to a DTM, which has several benefits: 
+*First, it enables semantic network analysis based on word-windows, where words need to co-occur within a given word distance. 
+*Second, it enables nearby words to be used if dictionaries or codebooks are used to categorize terms. For instance, negations can be taken into account when using dictionaries of sentiment words, so that "not good" can be distinguished from "good". 
+*Third, if the entire tokenlist is kept (i.e. without deleting words), it is possible to paste texts back together. This enables convenient ways to inspect data, such as keyword-in-context phrases. 
+*Finally, note that whereas a tokenlist can easily be transformed into a DTM, this is not possible the other way around. 
+
+Therefore, we recommend to structure your data as a tokenlist for working with the semnet package. This documents explains:
+*how you can create a tokenlist from raw text. 
+*how you can transform a tokenlist from a different format so that it is compatible with the semnet package. This is usefull if you import data that has been prepared with advanced natural language processing techniques that are not available in semnet.
+
+# Tokenlist from raw text
+
+As seen above, the asTokenlist() function can be used to create a tokenlist from raw text. The actual transformation from text to tokens, called tokenization, is then performed by the tokenize() function from the quanteda package. Note that most of the pre-processing options offered by quanteda can also be used, such as stemming and the removal of stopwords. 
+
+```{r, message=F, warning=FALSE}
+texts = c('Anne walks a lot', 'Bob is the walking type of guy')
+tokenlist = asTokenlist(texts, use_stemming = T)
+
+class(tokenlist)
+tokenlist
+```
+
+The tokenlist is a normal data.frame, but has "tokenlist" added to its class. This is mostly symbolic, to indicate that it is compatible with semnet in this form. (development note: we are still considering whether it's a good idea to make an S4 class for the tokenlist)
+
+Note that asTokenlist() also has a doc_id parameter, which can be used to specify document ids. 
+
+```{r, message=F, warning=FALSE}
+asTokenlist(texts, doc_id = c('Anne','Bob'), use_stemming = T)
+```
+
+# Tokenlist from a data.frame
+
+Any data.frame representing a tokenlist can be used in semnet as long as the right column names are used. By default, the semnet package expects that the tokenlist data.frame has columns labeled 'doc_id', 'position' and 'word'. If it is preferred to use other names, the doc.col, position.col and word.col parameters can be used in all semnet functions where a tokenlist is given as input.
+
+Alternatively, the default column names can be set globally using setTokenlistColnames().
+
+```{r}
+setTokenlistColnames(doc.col = 'doc_id', position.col = 'position', word.col = 'word')
+```
