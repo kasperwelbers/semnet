@@ -81,17 +81,23 @@ calcAlpha <- function(mat, weightsum, k){
 #' @export
 backbone.alpha <- function(g, k.is.Nvertices=F){
   mat = get.adjacency(g, attr='weight')
-  if(!is.directed(g)) mat[lower.tri(mat)] = 0 # prevents counting edges double in symmetric matrix (undirected graph)
-  
-  weightsum = Matrix::rowSums(mat) + Matrix::colSums(mat)
-  k = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
-  if(is.directed(g) & k.is.Nvertices) k = k + ncol(mat)
-  
   edgelist_ids = get.edgelist(g, names=F)
-  alpha_ij = calcAlpha(mat, weightsum, k)[edgelist_ids] # alpha from the perspective of the 'from' node.
-  alpha_ji = Matrix::t(calcAlpha(Matrix::t(mat), weightsum, k))[edgelist_ids] # alpha from the perspective of the 'to' node.
-  alpha_ij[alpha_ji < alpha_ij] = alpha_ji[alpha_ji < alpha_ij] # select lowest alpha, because an edge can be 'significant' from the perspective of both the 'from' and 'to' node. 
-  alpha_ij
+  
+  if(!is.directed(g)) {
+    mat[lower.tri(mat)] = 0 # prevents counting edges double in symmetric matrix (undirected graph)
+    weightsum_ij = weightsum_ji = Matrix::rowSums(mat) + Matrix::colSums(mat)
+    k_ij = k_ji = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat>0) + Matrix::colSums(mat>0)
+  } else {
+    weightsum_ij = Matrix::rowSums(mat)
+    weightsum_ji = Matrix::colSums(mat)
+    k_ij = Matrix::rowSums(mat>0)
+    k_ji = Matrix::colSums(mat>0)
+    if(k.is.Nvertices) k = k + ncol(mat)
+  }
+  alpha_ij = calcAlpha(mat, weightsum_ij, k_ij)[edgelist_ids] # alpha from the perspective of the 'from' node.
+  alpha_ji = Matrix::t(calcAlpha(Matrix::t(mat), weightsum_ji, k_ji))[edgelist_ids] # alpha from the perspective of the 'to' node.
+  ifelse(alpha_ij < alpha_ji, alpha_ij, alpha_ji) # select lowest alpha, because an edge can be 'significant' from the perspective of both the 'from' and 'to' node. 
+  
 }
 
 #' Calculate the alpha values that can be used to extract the backbone of a network, for only the out.degree
