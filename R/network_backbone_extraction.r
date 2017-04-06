@@ -90,9 +90,8 @@ backbone.alpha <- function(g, k.is.Nvertices=F){
   } else {
     weightsum_ij = Matrix::rowSums(mat)
     weightsum_ji = Matrix::colSums(mat)
-    k_ij = Matrix::rowSums(mat>0)
-    k_ji = Matrix::colSums(mat>0)
-    if(k.is.Nvertices) k = k + ncol(mat)
+    k_ij = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat>0)
+    k_ji = if(k.is.Nvertices) ncol(mat) else Matrix::colSums(mat>0)
   }
   alpha_ij = calcAlpha(mat, weightsum_ij, k_ij)[edgelist_ids] # alpha from the perspective of the 'from' node.
   alpha_ji = Matrix::t(calcAlpha(Matrix::t(mat), weightsum_ji, k_ji))[edgelist_ids] # alpha from the perspective of the 'to' node.
