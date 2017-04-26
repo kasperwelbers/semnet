@@ -47,6 +47,8 @@ filterVerticesByAlpha <- function(g, max.vertices, use.original.alpha){
 #' @return A graph in the Igraph format
 #' @export
 getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=T, max.vertices=NULL, use.original.alpha=T, k.is.Nvertices=F){
+  if (igraph::has.multiple(g)) stop('The semnet implementation of backbone extraction does not support parallel edges (i.e. having multiple edges between the same nodes with the same direction). If summing multiple edges is OK with you, you can use Igraphs simplify() function')
+  
   if(direction == 'none') E(g)$alpha = backbone.alpha(g, k.is.Nvertices)
   if(direction == 'in') E(g)$alpha = backbone.indegree.alpha(g, k.is.Nvertices)
   if(direction == 'out') E(g)$alpha = backbone.outdegree.alpha(g, k.is.Nvertices)
@@ -63,9 +65,6 @@ getBackboneNetwork <- function(g, alpha=0.05, direction='none', delete.isolates=
 
 
 calcAlpha <- function(mat, weightsum, k){
-  #mat = mat / weightsum
-  #mat = (1 - mat)^(k-1)
-  #mat[is.na(mat)] = 1
   mat@x = mat@x / weightsum[mat@i+1]
   mat@x = (1 - mat@x)^(k[mat@i+1]-1)
   mat@x[is.na(mat@x)] = 1
@@ -80,6 +79,8 @@ calcAlpha <- function(mat, weightsum, k){
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
 backbone.alpha <- function(g, k.is.Nvertices=F){
+  if (igraph::has.multiple(g)) stop('The semnet implementation of backbone extraction does not support parallel edges (i.e. having multiple edges between the same nodes with the same direction). If summing multiple edges is OK with you, you can use Igraphs simplify() function')
+  
   mat = get.adjacency(g, attr='weight')
   edgelist_ids = get.edgelist(g, names=F)
   
@@ -107,6 +108,11 @@ backbone.alpha <- function(g, k.is.Nvertices=F){
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
 backbone.outdegree.alpha <- function(g, k.is.Nvertices=F){
+  if (igraph::has.multiple(g)) stop('The semnet implementation of backbone extraction does not support 
+                                     parallel edges (i.e. having multiple edges between the same nodes 
+                                     with the same direction). If summing multiple edges into single 
+                                     weighted edges is OK with you, you can use Igraphs simplify() function')
+  
   mat = get.adjacency(g, attr='weight')
   weightsum = Matrix::rowSums(mat)
   k = if(k.is.Nvertices) nrow(mat) else Matrix::rowSums(mat > 0)
@@ -122,6 +128,8 @@ backbone.outdegree.alpha <- function(g, k.is.Nvertices=F){
 #' @return A vector of alpha values, which matches the edges. Can thus easily be made an edge attribute: E(g)$alpha = backbone.alpha(g)
 #' @export
 backbone.indegree.alpha <- function(g, k.is.Nvertices=F){
+  if (igraph::has.multiple(g)) stop('The semnet implementation of backbone extraction does not support parallel edges (i.e. having multiple edges between the same nodes with the same direction). If summing multiple edges is OK with you, you can use Igraphs simplify() function')
+  
   mat = get.adjacency(g, attr='weight')
   weightsum = Matrix::colSums(mat)
   k = if(k.is.Nvertices) nrow(mat) else Matrix::colSums(mat > 0)
