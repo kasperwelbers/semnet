@@ -18,9 +18,9 @@
 #' @export
 asTokenlist <- function(x, doc_id=NULL, language='english', use_stemming=F, lowercase=T, remove_stopwords=F, ngrams=1, doc.col = getOption('doc.col','doc_id'), position.col = getOption('position.col','position'), word.col=getOption('word.col','word'), ...){
   if(is(x, 'factor')) x = as.character(x)
-  if(is(x, 'character')) x = quanteda::tokenize(x, ngrams=ngrams, ...)
-  if(is(x, 'tokenizedTexts')) x = tokenizedTextsToDf(x, doc_id, doc.col, position.col, word.col)
-
+  if(is(x, 'character')) x = quanteda::tokens(x, ngrams=ngrams, ...)
+  if(is(x, 'tokens')) x = tokenizedTextsToDf(x, doc_id, doc.col, position.col, word.col)
+  
   ## at this point, x should be a data.frame with columnnames matching doc.col, position.col and word.col
   if(!is(x, 'data.frame')) stop('Tokenlist argument should be one of the following:\n- tokenizedTexts class (quanteda)\n- corpus class (quanteda)\n- tokenlist class (semnet)\n- a data.frame with document_id, position and word columns (see the *.col arguments)\n- a character vector')
   if(!class(x[,word.col]) == 'factor') x[,word.col] = as.factor(x[,word.col])

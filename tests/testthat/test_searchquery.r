@@ -1,5 +1,6 @@
 test_that("Query search works", {
   library(semnet)
+  library(testthat)
   text = c('Renewable fuel is better than fossil fuels!',
            'A fueled debate about fuel',
            'Mark_Rutte is simply Rutte')
